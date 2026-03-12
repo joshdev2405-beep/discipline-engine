@@ -14,7 +14,122 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      mood_logs: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          mood_score: number
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          mood_score: number
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          mood_score?: number
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trade_tags: {
+        Row: {
+          id: string
+          tag: string
+          trade_id: string
+        }
+        Insert: {
+          id?: string
+          tag: string
+          trade_id: string
+        }
+        Update: {
+          id?: string
+          tag?: string
+          trade_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_tags_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trades: {
+        Row: {
+          after_screenshot_url: string | null
+          before_screenshot_url: string | null
+          created_at: string
+          date: string
+          entry_price: number | null
+          followed_rules: boolean
+          id: string
+          intent_notes: string | null
+          mood_score: number
+          result_r: number | null
+          status: string
+          stop_price: number | null
+          strategy: string
+          symbol: string
+          target_price: number | null
+          trade_number: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          after_screenshot_url?: string | null
+          before_screenshot_url?: string | null
+          created_at?: string
+          date?: string
+          entry_price?: number | null
+          followed_rules?: boolean
+          id?: string
+          intent_notes?: string | null
+          mood_score?: number
+          result_r?: number | null
+          status?: string
+          stop_price?: number | null
+          strategy?: string
+          symbol: string
+          target_price?: number | null
+          trade_number: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          after_screenshot_url?: string | null
+          before_screenshot_url?: string | null
+          created_at?: string
+          date?: string
+          entry_price?: number | null
+          followed_rules?: boolean
+          id?: string
+          intent_notes?: string | null
+          mood_score?: number
+          result_r?: number | null
+          status?: string
+          stop_price?: number | null
+          strategy?: string
+          symbol?: string
+          target_price?: number | null
+          trade_number?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
