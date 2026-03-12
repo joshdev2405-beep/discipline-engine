@@ -3,7 +3,8 @@ import DisciplineScore from "@/components/DisciplineScore";
 import GaugeChart from "@/components/GaugeChart";
 import { mockTrades, mockTradeTags } from "@/lib/mock-data";
 import { MOOD_LABELS } from "@/lib/types";
-import { AlertTriangle, TrendingUp, Brain, Shield } from "lucide-react";
+import { useSettings, computeDisciplineScore, computeRuleStreak } from "@/lib/settings";
+import { AlertTriangle, TrendingUp, Brain, Shield, Flame, Camera, Target } from "lucide-react";
 
 function computeStats(trades: typeof mockTrades, days?: number) {
   let filtered = trades.filter((t) => t.status === "closed");
@@ -20,14 +21,48 @@ function computeStats(trades: typeof mockTrades, days?: number) {
 }
 
 export default function Dashboard() {
+  const { settings } = useSettings();
   const today = computeStats(mockTrades, 1);
   const week = computeStats(mockTrades, 7);
   const allTime = computeStats(mockTrades);
 
   const closedTrades = mockTrades.filter((t) => t.status === "closed");
+
+  // Hero: Daily discipline score (avg of today's trades, 0-5)
+  const todayTrades = mockTrades.filter(
+    (t) => t.date === new Date().toISOString().slice(0, 10) && t.status === "closed"
+  );
+  const dailyScore = todayTrades.length > 0
+    ? Math.round(
+        (todayTrades.reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0) / todayTrades.length) * 10
+      ) / 10
+    : 0;
+
+  // Rule streak
+  const streak = computeRuleStreak(closedTrades);
+
+  // Photo audit progress
+  const photosThisMonth = closedTrades.filter((t) => {
+    const d = new Date(t.date);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() &&
+      (t.before_screenshot_url || t.after_screenshot_url);
+  }).length;
+  const photoProgress = settings.monthlyPhotoQuota > 0
+    ? Math.min(Math.round((photosThisMonth / settings.monthlyPhotoQuota) * 100), 100) : 0;
+
+  // Monthly trade progress
+  const tradesThisMonth = closedTrades.filter((t) => {
+    const d = new Date(t.date);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+  const tradeProgress = settings.monthlyTradeTarget > 0
+    ? Math.min(Math.round((tradesThisMonth / settings.monthlyTradeTarget) * 100), 100) : 0;
+
   const adherence = allTime.discipline;
 
-  // Mood-to-profit placeholder data
+  // Mood-to-profit
   const moodGroups = [1, 2, 3, 4, 5].map((mood) => {
     const trades = closedTrades.filter((t) => t.mood_score === mood);
     const avgR = trades.length > 0
@@ -43,22 +78,57 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-3"
-      >
-        <Shield className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Discipline Command Center</h1>
-          <p className="text-xs font-mono text-muted-foreground">
-            {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+      {/* Hero Section */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Daily Discipline Score - Hero */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card-elevated glow-teal flex flex-col items-center justify-center py-8 md:col-span-1"
+        >
+          <span className="stat-label mb-3">Daily Discipline Score</span>
+          <div className="relative">
+            <span className="text-6xl font-mono font-black text-primary">{dailyScore}</span>
+            <span className="text-lg font-mono text-primary/60 ml-1">/5</span>
+          </div>
+          <p className="text-[10px] font-mono text-muted-foreground mt-2">
+            {dailyScore >= 4 ? "🔥 Elite execution" : dailyScore >= 2.5 ? "⚡ Room to improve" : "⚠ Needs attention"}
           </p>
-        </div>
-      </motion.div>
+        </motion.div>
 
-      {/* Discipline Scores */}
+        {/* Rule Streak */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.05 }}
+          className="glass-card-elevated flex flex-col items-center justify-center py-8"
+        >
+          <span className="stat-label mb-3">Rule Consistency Streak</span>
+          <div className="flex items-center gap-2">
+            <Flame className={`h-8 w-8 ${streak >= 5 ? "text-accent animate-pulse-glow" : "text-muted-foreground"}`} />
+            <span className="text-5xl font-mono font-black text-foreground">{streak}</span>
+          </div>
+          <p className="text-[10px] font-mono text-muted-foreground mt-2">
+            {streak >= 10 ? "🏆 Unstoppable!" : streak >= 5 ? "🔥 On fire!" : "Keep building momentum"}
+          </p>
+        </motion.div>
+
+        {/* Monthly Progress Rings */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="glass-card-elevated flex flex-col items-center justify-center py-6"
+        >
+          <span className="stat-label mb-4">Monthly Progress</span>
+          <div className="flex items-center gap-6">
+            <ProgressRing value={tradeProgress} label="Trades" icon={Target} color="primary" />
+            <ProgressRing value={photoProgress} label="Audits" icon={Camera} color="accent" />
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Discipline Scores Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <DisciplineScore label="Today" score={today.discipline} trades={today.total} wins={today.wins} />
         <DisciplineScore label="Last 7 Days" score={week.discipline} trades={week.total} wins={week.wins} />
@@ -67,29 +137,23 @@ export default function Dashboard() {
 
       {/* Gauge + Mood */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Process Adherence Gauge */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="terminal-card flex flex-col items-center justify-center py-6"
+          className="glass-card-elevated flex flex-col items-center justify-center py-6"
         >
           <GaugeChart value={adherence} label="Process Adherence" size={200} />
           <p className="text-xs font-mono text-muted-foreground mt-3">
-            {adherence >= 80
-              ? "✓ Operating within process parameters"
-              : adherence >= 50
-              ? "⚠ Discipline degradation detected"
-              : "✗ Critical: Process breakdown"}
+            {adherence >= 80 ? "✓ Operating within process parameters" : adherence >= 50 ? "⚠ Discipline degradation detected" : "✗ Critical: Process breakdown"}
           </p>
         </motion.div>
 
-        {/* Mood-to-Profit Correlation */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="terminal-card"
+          className="glass-card-elevated"
         >
           <div className="flex items-center gap-2 mb-4">
             <Brain className="h-4 w-4 text-accent" />
@@ -99,13 +163,13 @@ export default function Dashboard() {
             {moodGroups.map((g) => (
               <div key={g.mood} className="flex items-center gap-3">
                 <span className="text-xs font-mono w-16 text-muted-foreground">{g.label}</span>
-                <div className="flex-1 h-6 bg-muted rounded overflow-hidden relative">
+                <div className="flex-1 h-6 bg-muted/50 rounded-full overflow-hidden relative">
                   {g.trades > 0 && (
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min(Math.abs(g.avgR) * 25, 100)}%` }}
                       transition={{ duration: 0.8, delay: 0.4 }}
-                      className={`h-full rounded ${g.avgR >= 0 ? "bg-primary/60" : "bg-destructive/60"}`}
+                      className={`h-full rounded-full ${g.avgR >= 0 ? "bg-primary/50" : "bg-destructive/50"}`}
                     />
                   )}
                 </div>
@@ -125,7 +189,7 @@ export default function Dashboard() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="terminal-card border-accent/30 glow-gold"
+          className="glass-card-elevated neon-border-gold"
         >
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="h-4 w-4 text-accent" />
@@ -141,9 +205,7 @@ export default function Dashboard() {
                   <span className="text-loss">{t.result_r != null ? `${t.result_r}R` : "—"}</span>
                   <div className="flex gap-1">
                     {tags.map((tag) => (
-                      <span key={tag.id} className="tag-chip border-accent/40 text-accent">
-                        {tag.tag}
-                      </span>
+                      <span key={tag.id} className="tag-chip border-accent/40 text-accent">{tag.tag}</span>
                     ))}
                   </div>
                   <span className="text-muted-foreground flex-1 text-right truncate">{t.intent_notes}</span>
@@ -154,30 +216,62 @@ export default function Dashboard() {
         </motion.div>
       )}
 
-      {/* Quick Stats Footer */}
+      {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total R", value: closedTrades.reduce((s, t) => s + (t.result_r ?? 0), 0).toFixed(1), icon: TrendingUp, positive: true },
-          { label: "Avg R/Trade", value: (closedTrades.reduce((s, t) => s + (t.result_r ?? 0), 0) / (closedTrades.length || 1)).toFixed(2), icon: TrendingUp, positive: true },
-          { label: "Open Intents", value: mockTrades.filter((t) => t.status === "open").length.toString(), icon: Shield, positive: false },
-          { label: "Rule Breaks", value: mockTrades.filter((t) => !t.followed_rules).length.toString(), icon: AlertTriangle, positive: false },
+          { label: "Total R", value: closedTrades.reduce((s, t) => s + (t.result_r ?? 0), 0).toFixed(1), icon: TrendingUp, color: "text-primary" },
+          { label: "Avg R/Trade", value: (closedTrades.reduce((s, t) => s + (t.result_r ?? 0), 0) / (closedTrades.length || 1)).toFixed(2), icon: TrendingUp, color: "text-primary" },
+          { label: "Open Intents", value: mockTrades.filter((t) => t.status === "open").length.toString(), icon: Shield, color: "text-accent" },
+          { label: "Rule Breaks", value: mockTrades.filter((t) => !t.followed_rules).length.toString(), icon: AlertTriangle, color: "text-accent" },
         ].map((stat) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="terminal-card"
+            className="glass-card"
           >
             <div className="flex items-center gap-2">
               <stat.icon className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="stat-label">{stat.label}</span>
             </div>
-            <p className={`stat-value mt-1 ${stat.positive ? "text-primary" : "text-accent"}`}>
-              {stat.value}
-            </p>
+            <p className={`stat-value mt-1 ${stat.color}`}>{stat.value}</p>
           </motion.div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function ProgressRing({ value, label, icon: Icon, color }: { value: number; label: string; icon: any; color: string }) {
+  const r = 32;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (value / 100) * circ;
+  const colorClass = color === "primary" ? "stroke-primary" : "stroke-accent";
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative">
+        <svg width="76" height="76" viewBox="0 0 76 76">
+          <circle cx="38" cy="38" r={r} className="stroke-muted fill-none" strokeWidth="5" />
+          <motion.circle
+            cx="38" cy="38" r={r}
+            className={`${colorClass} fill-none progress-ring`}
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            initial={{ strokeDashoffset: circ }}
+            animate={{ strokeDashoffset: offset }}
+            transition={{ duration: 1, ease: "easeOut" }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-sm font-mono font-bold text-foreground">{value}%</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        <Icon className="h-3 w-3 text-muted-foreground" />
+        <span className="text-[10px] font-mono text-muted-foreground">{label}</span>
       </div>
     </div>
   );
