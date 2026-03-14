@@ -1,41 +1,84 @@
 import { create } from "zustand";
 
+export interface TradeRowMetric {
+  id: string;
+  name: string;
+  points: number;
+}
+
+export interface TradeRowConfig {
+  tradeNumber: number;
+  metrics: TradeRowMetric[];
+  decayMultiplier: number;
+}
+
+export type MandatoryField = "mood" | "rules" | "notes" | "before_photo" | "after_photo" | "tags";
+
+export const MANDATORY_FIELD_LABELS: Record<MandatoryField, string> = {
+  mood: "Mood Score",
+  rules: "Rule Check",
+  notes: "Intent / Notes",
+  before_photo: "Before Screenshot",
+  after_photo: "After Screenshot",
+  tags: "Tags",
+};
+
 export interface AppSettings {
   monthlyTradeTarget: number;
   dailyCap: number;
-  pointsRecording: number;
-  pointsFollowingRules: number;
-  pointsJournaling: number;
-  pointDecayTrade1: number;
-  pointDecayTrade2: number;
-  pointDecayTrade3: number;
   monthlyPhotoQuota: number;
+  tradeRows: TradeRowConfig[];
+  mandatoryFields: MandatoryField[];
+}
+
+const DEFAULT_METRICS: TradeRowMetric[] = [
+  { id: "recording", name: "Recording", points: 1 },
+  { id: "rules", name: "Rule Following", points: 2 },
+  { id: "journaling", name: "Journaling", points: 1 },
+];
+
+function buildDefaultTradeRows(cap: number): TradeRowConfig[] {
+  const decays = [1.0, 0.8, 0.5, 0.3, 0.2];
+  return Array.from({ length: cap }, (_, i) => ({
+    tradeNumber: i + 1,
+    metrics: DEFAULT_METRICS.map((m) => ({ ...m })),
+    decayMultiplier: decays[i] ?? 0.1,
+  }));
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   monthlyTradeTarget: 40,
   dailyCap: 3,
-  pointsRecording: 1,
-  pointsFollowingRules: 2,
-  pointsJournaling: 1,
-  pointDecayTrade1: 1.0,
-  pointDecayTrade2: 0.8,
-  pointDecayTrade3: 0.5,
   monthlyPhotoQuota: 20,
+  tradeRows: buildDefaultTradeRows(3),
+  mandatoryFields: ["mood", "rules", "notes"],
 };
 
 interface SettingsStore {
   settings: AppSettings;
   updateSettings: (partial: Partial<AppSettings>) => void;
+  setDailyCap: (cap: number) => void;
+  updateTradeRow: (tradeNumber: number, row: Partial<TradeRowConfig>) => void;
+  updateMetric: (tradeNumber: number, metricId: string, updates: Partial<TradeRowMetric>) => void;
+  addMetric: (tradeNumber: number, metric: TradeRowMetric) => void;
+  removeMetric: (tradeNumber: number, metricId: string) => void;
+  toggleMandatoryField: (field: MandatoryField) => void;
   resetSettings: () => void;
 }
 
 const loadSettings = (): AppSettings => {
   try {
     const saved = localStorage.getItem("trade-tracker-settings");
-    if (saved) return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return { ...DEFAULT_SETTINGS, ...parsed };
+    }
   } catch {}
   return DEFAULT_SETTINGS;
+};
+
+const persist = (settings: AppSettings) => {
+  localStorage.setItem("trade-tracker-settings", JSON.stringify(settings));
 };
 
 export const useSettings = create<SettingsStore>((set) => ({
@@ -43,7 +86,78 @@ export const useSettings = create<SettingsStore>((set) => ({
   updateSettings: (partial) =>
     set((state) => {
       const next = { ...state.settings, ...partial };
-      localStorage.setItem("trade-tracker-settings", JSON.stringify(next));
+      persist(next);
+      return { settings: next };
+    }),
+  setDailyCap: (cap) =>
+    set((state) => {
+      const current = state.settings.tradeRows;
+      let rows: TradeRowConfig[];
+      if (cap > current.length) {
+        const decays = [1.0, 0.8, 0.5, 0.3, 0.2];
+        const templateMetrics = current[0]?.metrics ?? DEFAULT_METRICS;
+        rows = [
+          ...current,
+          ...Array.from({ length: cap - current.length }, (_, i) => ({
+            tradeNumber: current.length + i + 1,
+            metrics: templateMetrics.map((m) => ({ ...m })),
+            decayMultiplier: decays[current.length + i] ?? 0.1,
+          })),
+        ];
+      } else {
+        rows = current.slice(0, cap);
+      }
+      const next = { ...state.settings, dailyCap: cap, tradeRows: rows };
+      persist(next);
+      return { settings: next };
+    }),
+  updateTradeRow: (tradeNumber, updates) =>
+    set((state) => {
+      const rows = state.settings.tradeRows.map((r) =>
+        r.tradeNumber === tradeNumber ? { ...r, ...updates } : r
+      );
+      const next = { ...state.settings, tradeRows: rows };
+      persist(next);
+      return { settings: next };
+    }),
+  updateMetric: (tradeNumber, metricId, updates) =>
+    set((state) => {
+      const rows = state.settings.tradeRows.map((r) =>
+        r.tradeNumber === tradeNumber
+          ? { ...r, metrics: r.metrics.map((m) => (m.id === metricId ? { ...m, ...updates } : m)) }
+          : r
+      );
+      const next = { ...state.settings, tradeRows: rows };
+      persist(next);
+      return { settings: next };
+    }),
+  addMetric: (tradeNumber, metric) =>
+    set((state) => {
+      const rows = state.settings.tradeRows.map((r) =>
+        r.tradeNumber === tradeNumber ? { ...r, metrics: [...r.metrics, metric] } : r
+      );
+      const next = { ...state.settings, tradeRows: rows };
+      persist(next);
+      return { settings: next };
+    }),
+  removeMetric: (tradeNumber, metricId) =>
+    set((state) => {
+      const rows = state.settings.tradeRows.map((r) =>
+        r.tradeNumber === tradeNumber
+          ? { ...r, metrics: r.metrics.filter((m) => m.id !== metricId) }
+          : r
+      );
+      const next = { ...state.settings, tradeRows: rows };
+      persist(next);
+      return { settings: next };
+    }),
+  toggleMandatoryField: (field) =>
+    set((state) => {
+      const fields = state.settings.mandatoryFields.includes(field)
+        ? state.settings.mandatoryFields.filter((f) => f !== field)
+        : [...state.settings.mandatoryFields, field];
+      const next = { ...state.settings, mandatoryFields: fields };
+      persist(next);
       return { settings: next };
     }),
   resetSettings: () =>
@@ -54,30 +168,31 @@ export const useSettings = create<SettingsStore>((set) => ({
 }));
 
 export function computeDisciplineScore(
-  trade: { followed_rules: boolean; intent_notes: string | null; before_screenshot_url: string | null; after_screenshot_url: string | null; trade_number: 1 | 2 | 3 },
+  trade: { followed_rules: boolean; intent_notes: string | null; before_screenshot_url: string | null; after_screenshot_url: string | null; trade_number: number },
   settings: AppSettings
 ): number {
+  const row = settings.tradeRows.find((r) => r.tradeNumber === trade.trade_number);
+  if (!row) return 0;
+
   let points = 0;
-  const maxPoints = settings.pointsRecording + settings.pointsFollowingRules + settings.pointsJournaling;
+  let maxPoints = 0;
 
-  // Recording points
-  points += settings.pointsRecording;
+  for (const metric of row.metrics) {
+    maxPoints += metric.points;
+    if (metric.id === "recording") {
+      points += metric.points;
+    } else if (metric.id === "rules") {
+      if (trade.followed_rules) points += metric.points;
+    } else if (metric.id === "journaling") {
+      if (trade.intent_notes && trade.intent_notes.trim().length > 0) points += metric.points;
+    } else {
+      // custom metrics — give full points by default
+      points += metric.points;
+    }
+  }
 
-  // Following rules
-  if (trade.followed_rules) points += settings.pointsFollowingRules;
-
-  // Journaling (has notes)
-  if (trade.intent_notes && trade.intent_notes.trim().length > 0) points += settings.pointsJournaling;
-
-  // Apply trade number decay
-  const decayMap: Record<number, number> = {
-    1: settings.pointDecayTrade1,
-    2: settings.pointDecayTrade2,
-    3: settings.pointDecayTrade3,
-  };
-  const decay = decayMap[trade.trade_number] ?? 1;
-
-  return Math.round(((points * decay) / maxPoints) * 5 * 10) / 10; // 0-5 scale
+  if (maxPoints === 0) return 0;
+  return Math.round(((points * row.decayMultiplier) / maxPoints) * 5 * 10) / 10;
 }
 
 export function computeRuleStreak(trades: Array<{ followed_rules: boolean; date: string }>): number {
