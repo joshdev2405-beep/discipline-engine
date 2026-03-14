@@ -15,7 +15,6 @@ export default {
     extend: {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -61,12 +60,12 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        teal: {
-          DEFAULT: "hsl(var(--teal-glow))",
+        emerald: {
+          DEFAULT: "hsl(var(--emerald-glow))",
         },
-        gold: {
-          DEFAULT: "hsl(var(--gold))",
-          dim: "hsl(var(--gold-dim))",
+        amber: {
+          DEFAULT: "hsl(var(--amber))",
+          dim: "hsl(var(--amber-dim))",
         },
         profit: "hsl(var(--profit))",
         loss: "hsl(var(--loss))",

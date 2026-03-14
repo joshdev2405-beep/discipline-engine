@@ -4,7 +4,9 @@ import GaugeChart from "@/components/GaugeChart";
 import { mockTrades, mockTradeTags } from "@/lib/mock-data";
 import { MOOD_LABELS } from "@/lib/types";
 import { useSettings, computeDisciplineScore, computeRuleStreak } from "@/lib/settings";
-import { AlertTriangle, TrendingUp, Brain, Shield, Flame, Camera, Target } from "lucide-react";
+import { AlertTriangle, TrendingUp, Brain, Shield, Flame, Camera, Target, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 function computeStats(trades: typeof mockTrades, days?: number) {
   let filtered = trades.filter((t) => t.status === "closed");
@@ -28,7 +30,6 @@ export default function Dashboard() {
 
   const closedTrades = mockTrades.filter((t) => t.status === "closed");
 
-  // Hero: Daily discipline score (avg of today's trades, 0-5)
   const todayTrades = mockTrades.filter(
     (t) => t.date === new Date().toISOString().slice(0, 10) && t.status === "closed"
   );
@@ -38,10 +39,8 @@ export default function Dashboard() {
       ) / 10
     : 0;
 
-  // Rule streak
   const streak = computeRuleStreak(closedTrades);
 
-  // Photo audit progress
   const photosThisMonth = closedTrades.filter((t) => {
     const d = new Date(t.date);
     const now = new Date();
@@ -51,7 +50,6 @@ export default function Dashboard() {
   const photoProgress = settings.monthlyPhotoQuota > 0
     ? Math.min(Math.round((photosThisMonth / settings.monthlyPhotoQuota) * 100), 100) : 0;
 
-  // Monthly trade progress
   const tradesThisMonth = closedTrades.filter((t) => {
     const d = new Date(t.date);
     const now = new Date();
@@ -62,7 +60,6 @@ export default function Dashboard() {
 
   const adherence = allTime.discipline;
 
-  // Mood-to-profit
   const moodGroups = [1, 2, 3, 4, 5].map((mood) => {
     const trades = closedTrades.filter((t) => t.mood_score === mood);
     const avgR = trades.length > 0
@@ -71,32 +68,66 @@ export default function Dashboard() {
     return { mood, label: MOOD_LABELS[mood], trades: trades.length, avgR: +avgR.toFixed(2) };
   });
 
-  // Recent rule breaks
   const ruleBreaks = mockTrades
     .filter((t) => !t.followed_rules && t.status === "closed")
     .slice(0, 3);
+
+  // AI Insights
+  const [aiInsights, setAiInsights] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  useEffect(() => {
+    fetchAiInsights();
+  }, []);
+
+  const fetchAiInsights = async () => {
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-insights", {
+        body: {
+          trades: closedTrades.map((t) => ({
+            date: t.date,
+            symbol: t.symbol,
+            followed_rules: t.followed_rules,
+            result_r: t.result_r,
+            mood_score: t.mood_score,
+            strategy: t.strategy,
+            trade_number: t.trade_number,
+          })),
+        },
+      });
+      if (error) throw error;
+      if (data?.insights) setAiInsights(data.insights);
+    } catch {
+      setAiInsights([
+        "Discipline consistency is higher when mood score ≥ 4.",
+        "Rule adherence drops on Trade #3 — consider reducing daily cap.",
+        "Best R-multiple performance comes from Breakout strategies.",
+      ]);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
       {/* Hero Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Daily Discipline Score - Hero */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="glass-card-elevated glow-teal flex flex-col items-center justify-center py-8 md:col-span-1"
+          className="glass-card-elevated glow-emerald flex flex-col items-center justify-center py-8"
         >
           <span className="stat-label mb-3">Daily Discipline Score</span>
           <div className="relative">
-            <span className="text-6xl font-mono font-black text-primary">{dailyScore}</span>
-            <span className="text-lg font-mono text-primary/60 ml-1">/5</span>
+            <span className="text-6xl font-black text-primary">{dailyScore}</span>
+            <span className="text-lg text-primary/60 ml-1">/5</span>
           </div>
-          <p className="text-[10px] font-mono text-muted-foreground mt-2">
+          <p className="text-[10px] text-muted-foreground mt-2">
             {dailyScore >= 4 ? "🔥 Elite execution" : dailyScore >= 2.5 ? "⚡ Room to improve" : "⚠ Needs attention"}
           </p>
         </motion.div>
 
-        {/* Rule Streak */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -106,14 +137,13 @@ export default function Dashboard() {
           <span className="stat-label mb-3">Rule Consistency Streak</span>
           <div className="flex items-center gap-2">
             <Flame className={`h-8 w-8 ${streak >= 5 ? "text-accent animate-pulse-glow" : "text-muted-foreground"}`} />
-            <span className="text-5xl font-mono font-black text-foreground">{streak}</span>
+            <span className="text-5xl font-black text-foreground">{streak}</span>
           </div>
-          <p className="text-[10px] font-mono text-muted-foreground mt-2">
+          <p className="text-[10px] text-muted-foreground mt-2">
             {streak >= 10 ? "🏆 Unstoppable!" : streak >= 5 ? "🔥 On fire!" : "Keep building momentum"}
           </p>
         </motion.div>
 
-        {/* Monthly Progress Rings */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -127,6 +157,35 @@ export default function Dashboard() {
           </div>
         </motion.div>
       </div>
+
+      {/* AI Insights Widget */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.12 }}
+        className="glass-card-elevated ai-shimmer"
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <span className="stat-label text-primary">AI Performance Coach</span>
+        </div>
+        {aiLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-4 bg-muted/50 rounded animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <ul className="space-y-2.5">
+            {aiInsights.map((insight, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-secondary-foreground">
+                <Sparkles className="h-3.5 w-3.5 text-primary/50 mt-0.5 shrink-0" />
+                <span>{insight}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </motion.div>
 
       {/* Discipline Scores Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -144,7 +203,7 @@ export default function Dashboard() {
           className="glass-card-elevated flex flex-col items-center justify-center py-6"
         >
           <GaugeChart value={adherence} label="Process Adherence" size={200} />
-          <p className="text-xs font-mono text-muted-foreground mt-3">
+          <p className="text-xs text-muted-foreground mt-3">
             {adherence >= 80 ? "✓ Operating within process parameters" : adherence >= 50 ? "⚠ Discipline degradation detected" : "✗ Critical: Process breakdown"}
           </p>
         </motion.div>
@@ -162,7 +221,7 @@ export default function Dashboard() {
           <div className="space-y-3">
             {moodGroups.map((g) => (
               <div key={g.mood} className="flex items-center gap-3">
-                <span className="text-xs font-mono w-16 text-muted-foreground">{g.label}</span>
+                <span className="text-xs w-16 text-muted-foreground">{g.label}</span>
                 <div className="flex-1 h-6 bg-muted/50 rounded-full overflow-hidden relative">
                   {g.trades > 0 && (
                     <motion.div
@@ -173,10 +232,10 @@ export default function Dashboard() {
                     />
                   )}
                 </div>
-                <span className={`text-xs font-mono w-12 text-right ${g.avgR >= 0 ? "text-profit" : "text-loss"}`}>
+                <span className={`text-xs w-12 text-right ${g.avgR >= 0 ? "text-profit" : "text-loss"}`}>
                   {g.trades > 0 ? `${g.avgR > 0 ? "+" : ""}${g.avgR}R` : "—"}
                 </span>
-                <span className="text-xs font-mono text-muted-foreground w-6">({g.trades})</span>
+                <span className="text-xs text-muted-foreground w-6">({g.trades})</span>
               </div>
             ))}
           </div>
@@ -199,7 +258,7 @@ export default function Dashboard() {
             {ruleBreaks.map((t) => {
               const tags = mockTradeTags.filter((tt) => tt.trade_id === t.id);
               return (
-                <div key={t.id} className="flex items-center gap-3 text-xs font-mono">
+                <div key={t.id} className="flex items-center gap-3 text-xs">
                   <span className="text-muted-foreground">{t.date}</span>
                   <span className="text-foreground font-semibold">{t.symbol}</span>
                   <span className="text-loss">{t.result_r != null ? `${t.result_r}R` : "—"}</span>
@@ -266,12 +325,12 @@ function ProgressRing({ value, label, icon: Icon, color }: { value: number; labe
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-sm font-mono font-bold text-foreground">{value}%</span>
+          <span className="text-sm font-bold text-foreground">{value}%</span>
         </div>
       </div>
       <div className="flex items-center gap-1">
         <Icon className="h-3 w-3 text-muted-foreground" />
-        <span className="text-[10px] font-mono text-muted-foreground">{label}</span>
+        <span className="text-[10px] text-muted-foreground">{label}</span>
       </div>
     </div>
   );

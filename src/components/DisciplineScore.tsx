@@ -23,20 +23,20 @@ export default function DisciplineScore({ label, score, trades, wins }: Discipli
       <span className="stat-label">{label}</span>
       <div className="flex items-baseline gap-2">
         <span className={`stat-value ${getScoreColor(score)}`}>{score}%</span>
-        <span className="text-[10px] font-mono text-muted-foreground">discipline</span>
+        <span className="text-[10px] text-muted-foreground">discipline</span>
       </div>
       <div className="flex gap-4 mt-1">
         <div>
-          <span className="text-[10px] font-mono text-muted-foreground">Trades</span>
-          <p className="text-sm font-mono font-semibold text-foreground">{trades}</p>
+          <span className="text-[10px] text-muted-foreground">Trades</span>
+          <p className="text-sm font-semibold text-foreground">{trades}</p>
         </div>
         <div>
-          <span className="text-[10px] font-mono text-muted-foreground">Wins</span>
-          <p className="text-sm font-mono font-semibold text-profit">{wins}</p>
+          <span className="text-[10px] text-muted-foreground">Wins</span>
+          <p className="text-sm font-semibold text-profit">{wins}</p>
         </div>
         <div>
-          <span className="text-[10px] font-mono text-muted-foreground">Win Rate</span>
-          <p className="text-sm font-mono font-semibold text-foreground">
+          <span className="text-[10px] text-muted-foreground">Win Rate</span>
+          <p className="text-sm font-semibold text-foreground">
             {trades > 0 ? Math.round((wins / trades) * 100) : 0}%
           </p>
         </div>

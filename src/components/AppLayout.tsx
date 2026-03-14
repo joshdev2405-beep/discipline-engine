@@ -1,6 +1,18 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, BookOpen, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, BookOpen, BarChart3, Settings, Sparkles, PanelLeft } from "lucide-react";
 import logo from "@/assets/logo.png";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -9,50 +21,74 @@ const navItems = [
   { to: "/settings", icon: Settings, label: "Config" },
 ];
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+function AppSidebar() {
   const location = useLocation();
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
 
   return (
-    <div className="min-h-screen bg-background terminal-grid">
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/60 backdrop-blur-2xl">
-        <div className="flex items-center justify-between px-6 h-14 max-w-[1600px] mx-auto">
-          <div className="flex items-center gap-3">
-            <img src={logo} alt="Trade Tracker" className="h-8 w-8 object-contain" />
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
+      <SidebarContent className="py-4">
+        {/* Logo */}
+        <div className={`flex items-center gap-3 px-4 mb-8 ${collapsed ? "justify-center px-2" : ""}`}>
+          <img src={logo} alt="Trade Tracker" className="h-8 w-8 object-contain shrink-0" />
+          {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-mono text-xs font-bold tracking-wider text-primary leading-none">
+              <span className="text-xs font-bold tracking-wider text-primary leading-none">
                 TRADE TRACKER
               </span>
-              <span className="text-[9px] font-mono text-muted-foreground leading-none mt-0.5">
+              <span className="text-[9px] text-muted-foreground leading-none mt-0.5">
                 THE DISCIPLINE ENGINE
               </span>
             </div>
-          </div>
-
-          <nav className="flex items-center gap-1">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.to;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={`flex items-center gap-2 px-3 py-1.5 text-xs font-mono rounded-lg transition-all duration-200 ${
-                    isActive
-                      ? "bg-primary/10 text-primary neon-border-teal"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                  }`}
-                >
-                  <item.icon className="h-3.5 w-3.5" />
-                  {item.label}
-                </NavLink>
-              );
-            })}
-          </nav>
+          )}
         </div>
-      </header>
 
-      <main className="p-6 max-w-[1600px] mx-auto">
-        {children}
-      </main>
-    </div>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.to;
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton asChild isActive={isActive}>
+                      <NavLink
+                        to={item.to}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent"
+                        }`}
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {!collapsed && <span>{item.label}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
+}
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background terminal-grid">
+        <AppSidebar />
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="sticky top-0 z-50 h-12 flex items-center border-b border-border/50 bg-background/80 backdrop-blur-xl px-4">
+            <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+          </header>
+          <main className="flex-1 p-6 max-w-[1400px] w-full mx-auto">
+            {children}
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 }
