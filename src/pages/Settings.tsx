@@ -29,7 +29,7 @@ export default function Settings() {
           <Target className="h-4 w-4 text-accent" />
           <span className="stat-label text-accent">Trade Targets</span>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="flex items-center gap-8">
           <SettingField label="Monthly Target" value={settings.monthlyTradeTarget} onChange={(v) => updateSettings({ monthlyTradeTarget: v })} min={1} max={200} />
           <SettingField label="Daily Cap" value={settings.dailyCap} onChange={(v) => setDailyCap(v)} min={1} max={10} hint="Syncs point matrix rows" />
           <SettingField label="Photo Quota" value={settings.monthlyPhotoQuota} onChange={(v) => updateSettings({ monthlyPhotoQuota: v })} min={0} max={100} />
@@ -97,16 +97,18 @@ function SettingField({ label, value, onChange, min = 0, max = 100, hint }: {
   min?: number; max?: number; hint?: string;
 }) {
   return (
-    <div>
-      <label className="text-xs text-muted-foreground">{label}</label>
-      {hint && <p className="text-[10px] text-muted-foreground/60">{hint}</p>}
+    <div className="flex items-center gap-3">
+      <div className="shrink-0">
+        <label className="text-xs text-muted-foreground">{label}</label>
+        {hint && <p className="text-[10px] text-muted-foreground/60">{hint}</p>}
+      </div>
       <input
         type="number"
         min={min}
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+        className="w-20 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
       />
     </div>
   );
