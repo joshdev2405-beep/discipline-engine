@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, BookOpen, BarChart3, Settings, Sparkles, PanelLeft } from "lucide-react";
+import { LayoutDashboard, BookOpen, BarChart3, Settings, ImageIcon, PanelLeft } from "lucide-react";
 import logo from "@/assets/logo.png";
 import {
   Sidebar,
@@ -17,6 +17,7 @@ import {
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/journal", icon: BookOpen, label: "Journal" },
+  { to: "/vault", icon: ImageIcon, label: "The Vault" },
   { to: "/analytics", icon: BarChart3, label: "Analytics" },
   { to: "/settings", icon: Settings, label: "Config" },
 ];

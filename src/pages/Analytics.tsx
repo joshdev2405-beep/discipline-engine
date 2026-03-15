@@ -75,22 +75,29 @@ function WidgetCard({ defaultMetric, delay }: { defaultMetric: WidgetMetric; del
         </div>
       )}
 
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 12% 14%)" />
-          <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(215 10% 45%)" }} />
-          <YAxis tick={{ fontSize: 10, fill: "hsl(215 10% 45%)" }} />
-          <Tooltip
-            contentStyle={{ background: "hsl(222 18% 8%)", border: "1px solid hsl(220 12% 14%)", borderRadius: "8px", fontSize: 12 }}
-            labelStyle={{ color: "hsl(210 20% 92%)" }}
-          />
-          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-            {data.map((entry, i) => (
-              <Cell key={i} fill={entry.value >= 0 ? "hsl(160 84% 39%)" : "hsl(0 72% 55%)"} opacity={0.8} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      {data.length === 0 ? (
+        <div className="flex items-center justify-center h-[200px] text-xs text-muted-foreground">
+          No data available
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 12% 14% / 0.5)" />
+            <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(215 10% 45%)" }} axisLine={{ stroke: "hsl(220 12% 14%)" }} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: "hsl(215 10% 45%)" }} axisLine={{ stroke: "hsl(220 12% 14%)" }} tickLine={false} />
+            <Tooltip
+              contentStyle={{ background: "hsl(222 18% 8% / 0.95)", border: "1px solid hsl(220 12% 16%)", borderRadius: "8px", fontSize: 12, backdropFilter: "blur(12px)" }}
+              labelStyle={{ color: "hsl(210 20% 92%)" }}
+              cursor={{ fill: "hsl(220 12% 14% / 0.3)" }}
+            />
+            <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+              {data.map((entry, i) => (
+                <Cell key={i} fill={entry.value >= 0 ? "hsl(160 84% 39% / 0.7)" : "hsl(0 72% 55% / 0.7)"} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      )}
     </motion.div>
   );
 }
