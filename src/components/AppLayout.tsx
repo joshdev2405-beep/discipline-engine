@@ -31,7 +31,7 @@ function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
       <SidebarContent className="py-4">
         {/* Logo */}
-        <div className={`flex items-center gap-3 px-4 mb-8 ${collapsed ? "justify-center px-2" : ""}`}>
+        <div className={`flex items-center gap-3 px-4 mb-4 ${collapsed ? "justify-center px-2" : ""}`}>
           <img src={logo} alt="Trade Tracker" className="h-8 w-8 object-contain shrink-0" />
           {!collapsed && (
             <div className="flex flex-col">
@@ -41,6 +41,42 @@ function AppSidebar() {
               <span className="text-[9px] text-muted-foreground leading-none mt-0.5">
                 THE DISCIPLINE ENGINE
               </span>
+            </div>
+          )}
+        </div>
+
+        {/* Operator Rank */}
+        <div className={`px-4 mb-6 ${collapsed ? "px-2" : ""}`}>
+          {!collapsed ? (
+            <div className="glass-card !p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Current Rank</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-primary">⬡ Novice Operator</span>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground">XP</span>
+                  <span className="text-[10px] text-muted-foreground">240 / 1000</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    style={{ width: "24%", boxShadow: "0 0 8px hsl(var(--emerald-glow) / 0.4)" }}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-primary text-sm">⬡</span>
+              <div className="h-8 w-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="w-full rounded-full bg-primary"
+                  style={{ height: "24%", boxShadow: "0 0 6px hsl(var(--emerald-glow) / 0.4)" }}
+                />
+              </div>
             </div>
           )}
         </div>
