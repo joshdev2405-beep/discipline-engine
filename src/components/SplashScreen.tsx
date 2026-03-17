@@ -52,8 +52,12 @@ export default function SplashScreen({ onComplete }: { onComplete: () => void })
           </motion.div>
 
           {/* Text */}
-          {phase >= 1 && phase < 3 && (
-            <div className="absolute flex gap-3 mt-36 text-2xl font-bold tracking-tight">
+          {phase >= 1 && (
+            <motion.div
+              className="absolute flex gap-3 mt-36 text-2xl font-bold tracking-tight"
+              animate={phase >= 3 ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
               <motion.span
                 className="text-foreground"
                 initial={{ opacity: 0, x: -30 }}
@@ -78,7 +82,7 @@ export default function SplashScreen({ onComplete }: { onComplete: () => void })
               >
                 Not Profit
               </motion.span>
-            </div>
+            </motion.div>
           )}
         </motion.div>
       )}
