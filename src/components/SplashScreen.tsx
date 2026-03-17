@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import splashLogo from "@/assets/splash-logo.png";
+import splashLogo from "@/assets/logo-new.jpeg";
 
 export default function SplashScreen({ onComplete }: { onComplete: () => void }) {
   const [phase, setPhase] = useState(0);
