@@ -20,42 +20,6 @@ export default function SplashScreen({ onComplete }: { onComplete: () => void })
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
         >
-          {/* Extending lines — behind logo */}
-          {phase >= 3 && (
-            <>
-              {/* Top-right line from logo center to top-right corner */}
-              <motion.div
-                className="absolute bg-primary rounded-full origin-center"
-                style={{
-                  width: "2px",
-                  height: "2px",
-                  top: "50%",
-                  left: "50%",
-                  transformOrigin: "center center",
-                  // Angle to top-right corner ≈ -45deg
-                  rotate: "-45deg",
-                }}
-                initial={{ scaleY: 1, opacity: 0.8 }}
-                animate={{ scaleY: 1200, opacity: 1 }}
-                transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-              />
-              {/* Bottom-left line from logo center to bottom-left corner */}
-              <motion.div
-                className="absolute bg-primary rounded-full origin-center"
-                style={{
-                  width: "2px",
-                  height: "2px",
-                  top: "50%",
-                  left: "50%",
-                  transformOrigin: "center center",
-                  rotate: "135deg",
-                }}
-                initial={{ scaleY: 1, opacity: 0.8 }}
-                animate={{ scaleY: 1200, opacity: 1 }}
-                transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-              />
-            </>
-          )}
 
           {/* Logo + zoom container */}
           <motion.div
