@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { LayoutDashboard, BookOpen, BarChart3, Settings, ImageIcon, PanelLeft } from "lucide-react";
 import logo from "@/assets/logo.png";
+import RankProgression from "@/components/RankProgression";
 import {
   Sidebar,
   SidebarContent,
@@ -26,6 +28,7 @@ function AppSidebar() {
   const location = useLocation();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const [rankOpen, setRankOpen] = useState(false);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
@@ -47,38 +50,41 @@ function AppSidebar() {
 
         {/* Operator Rank */}
         <div className={`px-4 mb-6 ${collapsed ? "px-2" : ""}`}>
-          {!collapsed ? (
-            <div className="glass-card !p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Current Rank</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-primary">⬡ Novice Operator</span>
-              </div>
-              <div className="space-y-1">
+          <button onClick={() => setRankOpen(true)} className="w-full text-left cursor-pointer hover:opacity-80 transition-opacity">
+            {!collapsed ? (
+              <div className="glass-card !p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">XP</span>
-                  <span className="text-[10px] text-muted-foreground">240 / 1000</span>
+                  <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Current Rank</span>
                 </div>
-                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-primary">⬡ Novice Operator</span>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground">XP</span>
+                    <span className="text-[10px] text-muted-foreground">240 / 1000</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      style={{ width: "24%", boxShadow: "0 0 8px hsl(var(--emerald-glow) / 0.4)" }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-primary text-sm">⬡</span>
+                <div className="h-8 w-1.5 rounded-full bg-muted overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-primary transition-all duration-500"
-                    style={{ width: "24%", boxShadow: "0 0 8px hsl(var(--emerald-glow) / 0.4)" }}
+                    className="w-full rounded-full bg-primary"
+                    style={{ height: "24%", boxShadow: "0 0 6px hsl(var(--emerald-glow) / 0.4)" }}
                   />
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-primary text-sm">⬡</span>
-              <div className="h-8 w-1.5 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="w-full rounded-full bg-primary"
-                  style={{ height: "24%", boxShadow: "0 0 6px hsl(var(--emerald-glow) / 0.4)" }}
-                />
-              </div>
-            </div>
-          )}
+            )}
+          </button>
+          <RankProgression open={rankOpen} onOpenChange={setRankOpen} />
         </div>
 
         <SidebarGroup>
