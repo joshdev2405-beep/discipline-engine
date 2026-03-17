@@ -28,6 +28,7 @@ function AppSidebar() {
   const location = useLocation();
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const [rankOpen, setRankOpen] = useState(false);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
