@@ -16,7 +16,7 @@ export default function SplashScreen({ onComplete }: { onComplete: () => void })
       {phase < 4 && (
         <motion.div
           key="splash"
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-background overflow-hidden"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black overflow-hidden"
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
         >
