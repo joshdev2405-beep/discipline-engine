@@ -97,7 +97,7 @@ function AppSidebar() {
                     <SidebarMenuButton asChild isActive={isActive}>
                       <NavLink
                         to={item.to}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors overflow-hidden whitespace-nowrap ${
                           isActive
                             ? "bg-primary/10 text-primary"
                             : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent"
