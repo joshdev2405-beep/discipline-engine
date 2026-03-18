@@ -37,7 +37,7 @@ function AppSidebar() {
         <div className={`flex items-center gap-3 px-4 mb-4 ${collapsed ? "justify-center px-2" : ""}`}>
           <img src={logo} alt="Trade Tracker" className="h-8 w-8 object-contain shrink-0" />
           {!collapsed && (
-            <div className="flex flex-col">
+            <div className="flex flex-col overflow-hidden whitespace-nowrap">
               <span className="text-xs font-bold tracking-wider text-primary leading-none">
                 TRADE TRACKER
               </span>
@@ -52,12 +52,12 @@ function AppSidebar() {
         <div className={`px-4 mb-6 ${collapsed ? "px-2" : ""}`}>
           <button onClick={() => setRankOpen(true)} className="w-full text-left cursor-pointer hover:opacity-80 transition-opacity">
             {!collapsed ? (
-              <div className="glass-card !p-3 space-y-2">
+              <div className="glass-card !p-3 space-y-2 overflow-hidden">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Current Rank</span>
+                  <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground whitespace-nowrap">Current Rank</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-primary">⬡ Novice Operator</span>
+                  <span className="text-xs font-semibold text-primary whitespace-nowrap">⬡ Novice Operator</span>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
@@ -97,7 +97,7 @@ function AppSidebar() {
                     <SidebarMenuButton asChild isActive={isActive}>
                       <NavLink
                         to={item.to}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors overflow-hidden whitespace-nowrap ${
                           isActive
                             ? "bg-primary/10 text-primary"
                             : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent"
