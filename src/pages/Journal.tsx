@@ -1,10 +1,39 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { mockTrades, mockTradeTags } from "@/lib/mock-data";
-import { MOOD_LABELS, AVAILABLE_TAGS, Trade } from "@/lib/types";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/AuthProvider";
+import { MOOD_LABELS, AVAILABLE_TAGS } from "@/lib/types";
 import { useSettings } from "@/lib/settings";
-import { BookOpen, Plus, X, Check, Image, ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
+import { BookOpen, Plus, X, Check, Image, ChevronDown, ChevronUp, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+
+type Trade = {
+  id: string;
+  user_id: string;
+  date: string;
+  trade_number: number;
+  symbol: string;
+  strategy: string;
+  entry_price: number | null;
+  stop_price: number | null;
+  target_price: number | null;
+  followed_rules: boolean;
+  result_r: number | null;
+  mood_score: number;
+  intent_notes: string | null;
+  status: string;
+  before_screenshot_url: string | null;
+  after_screenshot_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type TradeTag = {
+  id: string;
+  trade_id: string;
+  tag: string;
+};
 
 const MoodDot = ({ score, size = "sm" }: { score: number; size?: "sm" | "md" }) => {
   const colors: Record<number, string> = {
@@ -18,9 +47,8 @@ const MoodDot = ({ score, size = "sm" }: { score: number; size?: "sm" | "md" }) 
   return <div className={`${s} rounded-full ${colors[score] ?? "bg-muted"}`} title={MOOD_LABELS[score]} />;
 };
 
-function TradeRow({ trade, onEdit, onDelete }: { trade: Trade; onEdit: () => void; onDelete: () => void }) {
+function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: TradeTag[]; onEdit: () => void; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false);
-  const tags = mockTradeTags.filter((t) => t.trade_id === trade.id);
   const isOpen = trade.status === "open";
 
   return (
@@ -121,13 +149,21 @@ function TradeRow({ trade, onEdit, onDelete }: { trade: Trade; onEdit: () => voi
   );
 }
 
-function TradeEntryForm({ onClose }: { onClose: () => void }) {
+function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const { user } = useAuth();
   const { settings } = useSettings();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [moodScore, setMoodScore] = useState(3);
   const [followedRules, setFollowedRules] = useState(true);
   const [notes, setNotes] = useState("");
   const [symbol, setSymbol] = useState("");
+  const [strategy, setStrategy] = useState("");
+  const [tradeNumber, setTradeNumber] = useState(1);
+  const [resultR, setResultR] = useState("");
+  const [entryPrice, setEntryPrice] = useState("");
+  const [stopPrice, setStopPrice] = useState("");
+  const [targetPrice, setTargetPrice] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
@@ -135,16 +171,52 @@ function TradeEntryForm({ onClose }: { onClose: () => void }) {
 
   const isMandatory = (field: string) => settings.mandatoryFields.includes(field as any);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!user) return;
+
     const errors: string[] = [];
+    if (!symbol.trim()) errors.push("Symbol");
     if (isMandatory("notes") && !notes.trim()) errors.push("Intent/Notes");
     if (isMandatory("tags") && selectedTags.length === 0) errors.push("Tags");
     if (errors.length > 0) {
       toast.error("Missing mandatory fields", { description: errors.join(", ") });
       return;
     }
-    toast.success("Trade logged!", { description: "Discipline score updated." });
-    onClose();
+
+    setSubmitting(true);
+    try {
+      const { data: trade, error } = await supabase.from("trades").insert({
+        user_id: user.id,
+        symbol: symbol.trim().toUpperCase(),
+        strategy: strategy.trim(),
+        trade_number: tradeNumber,
+        mood_score: moodScore,
+        followed_rules: followedRules,
+        intent_notes: notes.trim() || null,
+        result_r: resultR ? parseFloat(resultR) : null,
+        entry_price: entryPrice ? parseFloat(entryPrice) : null,
+        stop_price: stopPrice ? parseFloat(stopPrice) : null,
+        target_price: targetPrice ? parseFloat(targetPrice) : null,
+        status: resultR ? "closed" : "open",
+      }).select().single();
+
+      if (error) throw error;
+
+      if (selectedTags.length > 0 && trade) {
+        const { error: tagError } = await supabase.from("trade_tags").insert(
+          selectedTags.map((tag) => ({ trade_id: trade.id, tag }))
+        );
+        if (tagError) console.error("Tag insert error:", tagError);
+      }
+
+      toast.success("Trade logged!", { description: "Discipline score updated." });
+      onSuccess();
+      onClose();
+    } catch (error: any) {
+      toast.error("Failed to log trade", { description: error.message });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const MandatoryMark = ({ field }: { field: string }) =>
@@ -164,11 +236,11 @@ function TradeEntryForm({ onClose }: { onClose: () => void }) {
         </div>
         <div>
           <label className="stat-label">Strategy</label>
-          <input className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors" placeholder="Breakout Long" />
+          <input value={strategy} onChange={(e) => setStrategy(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors" placeholder="Breakout Long" />
         </div>
         <div>
           <label className="stat-label">Trade #</label>
-          <select className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary">
+          <select value={tradeNumber} onChange={(e) => setTradeNumber(Number(e.target.value))} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary">
             {Array.from({ length: settings.dailyCap }, (_, i) => (
               <option key={i + 1} value={i + 1}>{i + 1}</option>
             ))}
@@ -176,17 +248,23 @@ function TradeEntryForm({ onClose }: { onClose: () => void }) {
         </div>
         <div>
           <label className="stat-label">Result (R)</label>
-          <input className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary" placeholder="+1.5" type="number" step="0.1" />
+          <input value={resultR} onChange={(e) => setResultR(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary" placeholder="+1.5" type="number" step="0.1" />
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        {["Entry Price", "Stop Price", "Target Price"].map((label) => (
-          <div key={label}>
-            <label className="stat-label">{label}</label>
-            <input className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary" placeholder="0.00" type="number" step="0.01" />
-          </div>
-        ))}
+        <div>
+          <label className="stat-label">Entry Price</label>
+          <input value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary" placeholder="0.00" type="number" step="0.01" />
+        </div>
+        <div>
+          <label className="stat-label">Stop Price</label>
+          <input value={stopPrice} onChange={(e) => setStopPrice(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary" placeholder="0.00" type="number" step="0.01" />
+        </div>
+        <div>
+          <label className="stat-label">Target Price</label>
+          <input value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary" placeholder="0.00" type="number" step="0.01" />
+        </div>
       </div>
 
       {/* Mood */}
@@ -241,16 +319,59 @@ function TradeEntryForm({ onClose }: { onClose: () => void }) {
       {/* Actions */}
       <div className="flex justify-end gap-2 pt-2">
         <button onClick={onClose} className="px-4 py-2 text-xs text-muted-foreground border border-border rounded-lg hover:bg-secondary/50 transition-colors">Cancel</button>
-        <button onClick={handleSubmit} className="px-5 py-2 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">Log Trade</button>
+        <button onClick={handleSubmit} disabled={submitting} className="px-5 py-2 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center gap-2">
+          {submitting && <Loader2 className="h-3 w-3 animate-spin" />}
+          Log Trade
+        </button>
       </div>
     </motion.div>
   );
 }
 
 export default function Journal() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
-  const [trades, setTrades] = useState(mockTrades);
+
+  const { data: trades = [], isLoading } = useQuery({
+    queryKey: ["trades", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("trades")
+        .select("*")
+        .order("date", { ascending: false })
+        .order("trade_number", { ascending: true });
+      if (error) throw error;
+      return data as Trade[];
+    },
+    enabled: !!user,
+  });
+
+  const { data: allTags = [] } = useQuery({
+    queryKey: ["trade_tags", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("trade_tags").select("*");
+      if (error) throw error;
+      return data as TradeTag[];
+    },
+    enabled: !!user,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("trades").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trades"] });
+      queryClient.invalidateQueries({ queryKey: ["trade_tags"] });
+      toast.success("Trade deleted", { description: "Discipline scores recalculated." });
+    },
+    onError: (error: any) => {
+      toast.error("Delete failed", { description: error.message });
+    },
+  });
 
   const filtered = trades.filter((t) => {
     if (filter === "open") return t.status === "open";
@@ -258,13 +379,9 @@ export default function Journal() {
     return true;
   });
 
-  const handleDelete = (id: string) => {
-    setTrades((prev) => prev.filter((t) => t.id !== id));
-    toast.success("Trade deleted", { description: "Discipline scores recalculated." });
-  };
-
-  const handleEdit = (id: string) => {
-    toast.info("Edit mode", { description: `Editing trade ${id} — coming soon with database integration.` });
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["trades"] });
+    queryClient.invalidateQueries({ queryKey: ["trade_tags"] });
   };
 
   return (
@@ -281,7 +398,7 @@ export default function Journal() {
       </div>
 
       <AnimatePresence>
-        {showForm && <TradeEntryForm onClose={() => setShowForm(false)} />}
+        {showForm && <TradeEntryForm onClose={() => setShowForm(false)} onSuccess={handleRefresh} />}
       </AnimatePresence>
 
       <div className="flex gap-1">
@@ -292,16 +409,29 @@ export default function Journal() {
         ))}
       </div>
 
-      <div className="space-y-2">
-        {filtered.map((trade) => (
-          <TradeRow key={trade.id} trade={trade} onEdit={() => handleEdit(trade.id)} onDelete={() => handleDelete(trade.id)} />
-        ))}
-        {filtered.length === 0 && (
-          <div className="glass-card text-center py-12">
-            <p className="text-sm text-muted-foreground">No trades found</p>
-          </div>
-        )}
-      </div>
+      {isLoading ? (
+        <div className="glass-card text-center py-12">
+          <Loader2 className="h-5 w-5 animate-spin text-primary mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">Loading trades...</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((trade) => (
+            <TradeRow
+              key={trade.id}
+              trade={trade}
+              tags={allTags.filter((t) => t.trade_id === trade.id)}
+              onEdit={() => toast.info("Edit mode", { description: "Coming soon." })}
+              onDelete={() => deleteMutation.mutate(trade.id)}
+            />
+          ))}
+          {filtered.length === 0 && (
+            <div className="glass-card text-center py-12">
+              <p className="text-sm text-muted-foreground">No trades found</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
