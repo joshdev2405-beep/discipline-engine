@@ -37,7 +37,7 @@ function AppSidebar() {
         <div className={`flex items-center gap-3 px-4 mb-4 ${collapsed ? "justify-center px-2" : ""}`}>
           <img src={logo} alt="Trade Tracker" className="h-8 w-8 object-contain shrink-0" />
           {!collapsed && (
-            <div className="flex flex-col">
+            <div className="flex flex-col overflow-hidden whitespace-nowrap">
               <span className="text-xs font-bold tracking-wider text-primary leading-none">
                 TRADE TRACKER
               </span>
