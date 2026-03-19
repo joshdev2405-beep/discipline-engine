@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, BookOpen, BarChart3, Settings, ImageIcon, PanelLeft } from "lucide-react";
+import { LayoutDashboard, BookOpen, BarChart3, Settings, ImageIcon, LogOut } from "lucide-react";
 import logo from "@/assets/logo-new.jpeg";
+import { useAuth } from "@/components/AuthProvider";
 import RankProgression from "@/components/RankProgression";
 import {
   Sidebar,
