@@ -1,12 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { mockTrades, mockTradeTags } from "@/lib/mock-data";
+import { useTrades, Trade } from "@/hooks/use-trades";
 import { MOOD_LABELS, AVAILABLE_TAGS } from "@/lib/types";
-import { BarChart3, TrendingUp, TrendingDown, Settings as GearIcon, Sparkles } from "lucide-react";
+import { BarChart3, Settings as GearIcon, Sparkles, Loader2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import { useSettings, computeDisciplineScore } from "@/lib/settings";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
 
 type WidgetMetric = "win_rate" | "avg_discipline" | "avg_r" | "trade_volume" | "points_per_rule";
 
@@ -18,10 +17,8 @@ const WIDGET_OPTIONS: { value: WidgetMetric; label: string }[] = [
   { value: "points_per_rule", label: "Points per Rule" },
 ];
 
-function useWidgetData(metric: WidgetMetric) {
+function useWidgetData(metric: WidgetMetric, closedTrades: Trade[]) {
   const { settings } = useSettings();
-  const closedTrades = mockTrades.filter((t) => t.status === "closed");
-
   const strategies = [...new Set(closedTrades.map((t) => t.strategy))];
 
   return strategies.map((strat) => {
@@ -46,10 +43,10 @@ function useWidgetData(metric: WidgetMetric) {
   });
 }
 
-function WidgetCard({ defaultMetric, delay }: { defaultMetric: WidgetMetric; delay: number }) {
+function WidgetCard({ defaultMetric, delay, closedTrades }: { defaultMetric: WidgetMetric; delay: number; closedTrades: Trade[] }) {
   const [metric, setMetric] = useState<WidgetMetric>(defaultMetric);
   const [showSettings, setShowSettings] = useState(false);
-  const data = useWidgetData(metric);
+  const data = useWidgetData(metric, closedTrades);
   const label = WIDGET_OPTIONS.find((o) => o.value === metric)?.label ?? "";
 
   return (
@@ -76,9 +73,7 @@ function WidgetCard({ defaultMetric, delay }: { defaultMetric: WidgetMetric; del
       )}
 
       {data.length === 0 ? (
-        <div className="flex items-center justify-center h-[200px] text-xs text-muted-foreground">
-          No data available
-        </div>
+        <div className="flex items-center justify-center h-[200px] text-xs text-muted-foreground">No data available</div>
       ) : (
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={data}>
@@ -103,27 +98,28 @@ function WidgetCard({ defaultMetric, delay }: { defaultMetric: WidgetMetric; del
 }
 
 export default function Analytics() {
-  const closedTrades = mockTrades.filter((t) => t.status === "closed");
+  const { trades, tags, isLoading } = useTrades();
+  const closedTrades = trades.filter((t) => t.status === "closed");
 
   const moodAnalysis = [1, 2, 3, 4, 5].map((mood) => {
-    const trades = closedTrades.filter((t) => t.mood_score === mood);
-    const wins = trades.filter((t) => (t.result_r ?? 0) > 0).length;
-    const totalR = trades.reduce((s, t) => s + (t.result_r ?? 0), 0);
-    const ruleFollowed = trades.filter((t) => t.followed_rules).length;
+    const moodTrades = closedTrades.filter((t) => t.mood_score === mood);
+    const wins = moodTrades.filter((t) => (t.result_r ?? 0) > 0).length;
+    const totalR = moodTrades.reduce((s, t) => s + (t.result_r ?? 0), 0);
+    const ruleFollowed = moodTrades.filter((t) => t.followed_rules).length;
     return {
-      mood, label: MOOD_LABELS[mood], count: trades.length,
-      winRate: trades.length > 0 ? Math.round((wins / trades.length) * 100) : 0,
-      avgR: trades.length > 0 ? +(totalR / trades.length).toFixed(2) : 0,
-      discipline: trades.length > 0 ? Math.round((ruleFollowed / trades.length) * 100) : 0,
+      mood, label: MOOD_LABELS[mood], count: moodTrades.length,
+      winRate: moodTrades.length > 0 ? Math.round((wins / moodTrades.length) * 100) : 0,
+      avgR: moodTrades.length > 0 ? +(totalR / moodTrades.length).toFixed(2) : 0,
+      discipline: moodTrades.length > 0 ? Math.round((ruleFollowed / moodTrades.length) * 100) : 0,
     };
   });
 
   const tagAnalysis = AVAILABLE_TAGS.map((tag) => {
-    const taggedTradeIds = mockTradeTags.filter((tt) => tt.tag === tag).map((tt) => tt.trade_id);
-    const trades = closedTrades.filter((t) => taggedTradeIds.includes(t.id));
-    const wins = trades.filter((t) => (t.result_r ?? 0) > 0).length;
-    const totalR = trades.reduce((s, t) => s + (t.result_r ?? 0), 0);
-    return { tag, count: trades.length, winRate: trades.length > 0 ? Math.round((wins / trades.length) * 100) : 0, avgR: trades.length > 0 ? +(totalR / trades.length).toFixed(2) : 0 };
+    const taggedTradeIds = tags.filter((tt) => tt.tag === tag).map((tt) => tt.trade_id);
+    const tagTrades = closedTrades.filter((t) => taggedTradeIds.includes(t.id));
+    const wins = tagTrades.filter((t) => (t.result_r ?? 0) > 0).length;
+    const totalR = tagTrades.reduce((s, t) => s + (t.result_r ?? 0), 0);
+    return { tag, count: tagTrades.length, winRate: tagTrades.length > 0 ? Math.round((wins / tagTrades.length) * 100) : 0, avgR: tagTrades.length > 0 ? +(totalR / tagTrades.length).toFixed(2) : 0 };
   }).filter((t) => t.count > 0);
 
   // AI Insights
@@ -131,8 +127,10 @@ export default function Analytics() {
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
-    fetchAnalyticsInsights();
-  }, []);
+    if (closedTrades.length > 0) {
+      fetchAnalyticsInsights();
+    }
+  }, [closedTrades.length]);
 
   const fetchAnalyticsInsights = async () => {
     setAiLoading(true);
@@ -144,7 +142,7 @@ export default function Analytics() {
             date: t.date, symbol: t.symbol, followed_rules: t.followed_rules,
             result_r: t.result_r, mood_score: t.mood_score, strategy: t.strategy,
           })),
-          tags: mockTradeTags,
+          tags: tags,
         },
       });
       if (error) throw error;
@@ -159,6 +157,14 @@ export default function Analytics() {
       setAiLoading(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -191,8 +197,8 @@ export default function Analytics() {
 
       {/* Customizable Widget Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <WidgetCard defaultMetric="win_rate" delay={0.05} />
-        <WidgetCard defaultMetric="avg_discipline" delay={0.1} />
+        <WidgetCard defaultMetric="win_rate" delay={0.05} closedTrades={closedTrades} />
+        <WidgetCard defaultMetric="avg_discipline" delay={0.1} closedTrades={closedTrades} />
       </div>
 
       {/* Mood & Tag Analysis */}

@@ -1,14 +1,14 @@
 import { motion } from "framer-motion";
 import DisciplineScore from "@/components/DisciplineScore";
 import GaugeChart from "@/components/GaugeChart";
-import { mockTrades, mockTradeTags } from "@/lib/mock-data";
+import { useTrades, Trade } from "@/hooks/use-trades";
 import { MOOD_LABELS } from "@/lib/types";
 import { useSettings, computeDisciplineScore, computeRuleStreak } from "@/lib/settings";
-import { AlertTriangle, TrendingUp, Brain, Shield, Flame, Camera, Target, Sparkles } from "lucide-react";
+import { AlertTriangle, TrendingUp, Brain, Shield, Flame, Camera, Target, Sparkles, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-function computeStats(trades: typeof mockTrades, days?: number) {
+function computeStats(trades: Trade[], days?: number) {
   let filtered = trades.filter((t) => t.status === "closed");
   if (days) {
     const cutoff = new Date();
@@ -24,13 +24,15 @@ function computeStats(trades: typeof mockTrades, days?: number) {
 
 export default function Dashboard() {
   const { settings } = useSettings();
-  const today = computeStats(mockTrades, 1);
-  const week = computeStats(mockTrades, 7);
-  const allTime = computeStats(mockTrades);
+  const { trades, tags, isLoading } = useTrades();
 
-  const closedTrades = mockTrades.filter((t) => t.status === "closed");
+  const today = computeStats(trades, 1);
+  const week = computeStats(trades, 7);
+  const allTime = computeStats(trades);
 
-  const todayTrades = mockTrades.filter(
+  const closedTrades = trades.filter((t) => t.status === "closed");
+
+  const todayTrades = trades.filter(
     (t) => t.date === new Date().toISOString().slice(0, 10) && t.status === "closed"
   );
   const dailyScore = todayTrades.length > 0
@@ -61,14 +63,14 @@ export default function Dashboard() {
   const adherence = allTime.discipline;
 
   const moodGroups = [1, 2, 3, 4, 5].map((mood) => {
-    const trades = closedTrades.filter((t) => t.mood_score === mood);
-    const avgR = trades.length > 0
-      ? trades.reduce((s, t) => s + (t.result_r ?? 0), 0) / trades.length
+    const moodTrades = closedTrades.filter((t) => t.mood_score === mood);
+    const avgR = moodTrades.length > 0
+      ? moodTrades.reduce((s, t) => s + (t.result_r ?? 0), 0) / moodTrades.length
       : 0;
-    return { mood, label: MOOD_LABELS[mood], trades: trades.length, avgR: +avgR.toFixed(2) };
+    return { mood, label: MOOD_LABELS[mood], trades: moodTrades.length, avgR: +avgR.toFixed(2) };
   });
 
-  const ruleBreaks = mockTrades
+  const ruleBreaks = trades
     .filter((t) => !t.followed_rules && t.status === "closed")
     .slice(0, 3);
 
@@ -77,8 +79,10 @@ export default function Dashboard() {
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
-    fetchAiInsights();
-  }, []);
+    if (closedTrades.length > 0) {
+      fetchAiInsights();
+    }
+  }, [closedTrades.length]);
 
   const fetchAiInsights = async () => {
     setAiLoading(true);
@@ -86,12 +90,8 @@ export default function Dashboard() {
       const { data, error } = await supabase.functions.invoke("ai-insights", {
         body: {
           trades: closedTrades.map((t) => ({
-            date: t.date,
-            symbol: t.symbol,
-            followed_rules: t.followed_rules,
-            result_r: t.result_r,
-            mood_score: t.mood_score,
-            strategy: t.strategy,
+            date: t.date, symbol: t.symbol, followed_rules: t.followed_rules,
+            result_r: t.result_r, mood_score: t.mood_score, strategy: t.strategy,
             trade_number: t.trade_number,
           })),
         },
@@ -109,15 +109,19 @@ export default function Dashboard() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Hero Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="glass-card-elevated glow-emerald flex flex-col items-center justify-center py-8"
-        >
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card-elevated glow-emerald flex flex-col items-center justify-center py-8">
           <span className="stat-label mb-3">Daily Discipline Score</span>
           <div className="relative">
             <span className="text-6xl font-black text-primary">{dailyScore}</span>
@@ -128,12 +132,7 @@ export default function Dashboard() {
           </p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.05 }}
-          className="glass-card-elevated flex flex-col items-center justify-center py-8"
-        >
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }} className="glass-card-elevated flex flex-col items-center justify-center py-8">
           <span className="stat-label mb-3">Rule Consistency Streak</span>
           <div className="flex items-center gap-2">
             <Flame className={`h-8 w-8 ${streak >= 5 ? "text-accent animate-pulse-glow" : "text-muted-foreground"}`} />
@@ -144,12 +143,7 @@ export default function Dashboard() {
           </p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 }}
-          className="glass-card-elevated flex flex-col items-center justify-center py-6"
-        >
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="glass-card-elevated flex flex-col items-center justify-center py-6">
           <span className="stat-label mb-4">Monthly Progress</span>
           <div className="flex items-center gap-6">
             <ProgressRing value={tradeProgress} label="Trades" icon={Target} color="primary" />
@@ -159,21 +153,14 @@ export default function Dashboard() {
       </div>
 
       {/* AI Insights Widget */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.12 }}
-        className="glass-card-elevated ai-shimmer"
-      >
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="glass-card-elevated ai-shimmer">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="h-4 w-4 text-primary" />
           <span className="stat-label text-primary">AI Performance Coach</span>
         </div>
         {aiLoading ? (
           <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-4 bg-muted/50 rounded animate-pulse" />
-            ))}
+            {[1, 2, 3].map((i) => (<div key={i} className="h-4 bg-muted/50 rounded animate-pulse" />))}
           </div>
         ) : (
           <ul className="space-y-2.5">
@@ -196,24 +183,14 @@ export default function Dashboard() {
 
       {/* Gauge + Mood */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="glass-card-elevated flex flex-col items-center justify-center py-6"
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="glass-card-elevated flex flex-col items-center justify-center py-6">
           <GaugeChart value={adherence} label="Process Adherence" size={200} />
           <p className="text-xs text-muted-foreground mt-3">
             {adherence >= 80 ? "✓ Operating within process parameters" : adherence >= 50 ? "⚠ Discipline degradation detected" : "✗ Critical: Process breakdown"}
           </p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="glass-card-elevated"
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="glass-card-elevated">
           <div className="flex items-center gap-2 mb-4">
             <Brain className="h-4 w-4 text-accent" />
             <span className="stat-label">Mood → Profit Correlation</span>
@@ -244,26 +221,21 @@ export default function Dashboard() {
 
       {/* Rule Break Alerts */}
       {ruleBreaks.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="glass-card-elevated neon-border-gold"
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="glass-card-elevated neon-border-gold">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="h-4 w-4 text-accent" />
             <span className="stat-label text-accent">Recent Rule Violations</span>
           </div>
           <div className="space-y-2">
             {ruleBreaks.map((t) => {
-              const tags = mockTradeTags.filter((tt) => tt.trade_id === t.id);
+              const tradeTags = tags.filter((tt) => tt.trade_id === t.id);
               return (
                 <div key={t.id} className="flex items-center gap-3 text-xs">
                   <span className="text-muted-foreground">{t.date}</span>
                   <span className="text-foreground font-semibold">{t.symbol}</span>
                   <span className="text-loss">{t.result_r != null ? `${t.result_r}R` : "—"}</span>
                   <div className="flex gap-1">
-                    {tags.map((tag) => (
+                    {tradeTags.map((tag) => (
                       <span key={tag.id} className="tag-chip border-accent/40 text-accent">{tag.tag}</span>
                     ))}
                   </div>
@@ -280,16 +252,10 @@ export default function Dashboard() {
         {[
           { label: "Total R", value: closedTrades.reduce((s, t) => s + (t.result_r ?? 0), 0).toFixed(1), icon: TrendingUp, color: "text-primary" },
           { label: "Avg R/Trade", value: (closedTrades.reduce((s, t) => s + (t.result_r ?? 0), 0) / (closedTrades.length || 1)).toFixed(2), icon: TrendingUp, color: "text-primary" },
-          { label: "Open Intents", value: mockTrades.filter((t) => t.status === "open").length.toString(), icon: Shield, color: "text-accent" },
-          { label: "Rule Breaks", value: mockTrades.filter((t) => !t.followed_rules).length.toString(), icon: AlertTriangle, color: "text-accent" },
+          { label: "Open Intents", value: trades.filter((t) => t.status === "open").length.toString(), icon: Shield, color: "text-accent" },
+          { label: "Rule Breaks", value: trades.filter((t) => !t.followed_rules).length.toString(), icon: AlertTriangle, color: "text-accent" },
         ].map((stat) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="glass-card"
-          >
+          <motion.div key={stat.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="glass-card">
             <div className="flex items-center gap-2">
               <stat.icon className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="stat-label">{stat.label}</span>
