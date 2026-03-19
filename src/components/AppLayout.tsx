@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, BookOpen, BarChart3, Settings, ImageIcon, PanelLeft } from "lucide-react";
+import { LayoutDashboard, BookOpen, BarChart3, Settings, ImageIcon, LogOut } from "lucide-react";
 import logo from "@/assets/logo-new.jpeg";
+import { useAuth } from "@/components/AuthProvider";
 import RankProgression from "@/components/RankProgression";
 import {
   Sidebar,
@@ -27,6 +28,7 @@ const navItems = [
 function AppSidebar() {
   const location = useLocation();
   const { state } = useSidebar();
+  const { signOut } = useAuth();
   const collapsed = state === "collapsed";
   const [rankOpen, setRankOpen] = useState(false);
 
@@ -113,6 +115,17 @@ function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Sign Out */}
+        <div className={`mt-auto px-4 pb-4 ${collapsed ? "px-2" : ""}`}>
+          <button
+            onClick={signOut}
+            className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors overflow-hidden whitespace-nowrap ${collapsed ? "justify-center px-0" : ""}`}
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            {!collapsed && <span>Sign Out</span>}
+          </button>
+        </div>
       </SidebarContent>
     </Sidebar>
   );
