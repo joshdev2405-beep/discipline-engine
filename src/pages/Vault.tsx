@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Image, X, Calendar, Hash } from "lucide-react";
-import { mockTrades } from "@/lib/mock-data";
+import { Image, X, Calendar, Hash, Loader2 } from "lucide-react";
+import { useTrades, Trade } from "@/hooks/use-trades";
 
 interface VaultPhoto {
   tradeId: string;
@@ -11,9 +11,9 @@ interface VaultPhoto {
   url: string;
 }
 
-function getVaultPhotos(): VaultPhoto[] {
+function getVaultPhotos(trades: Trade[]): VaultPhoto[] {
   const photos: VaultPhoto[] = [];
-  for (const trade of mockTrades) {
+  for (const trade of trades) {
     if (trade.before_screenshot_url) {
       photos.push({
         tradeId: trade.id,
@@ -66,7 +66,7 @@ function Lightbox({ photo, onClose }: { photo: VaultPhoto; onClose: () => void }
         <div className="flex items-center justify-center gap-4 mt-4">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Hash className="h-3 w-3" />
-            {photo.symbol} — Trade #{photo.tradeId}
+            {photo.symbol}
           </span>
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Calendar className="h-3 w-3" />
@@ -86,8 +86,17 @@ function Lightbox({ photo, onClose }: { photo: VaultPhoto; onClose: () => void }
 }
 
 export default function Vault() {
-  const photos = getVaultPhotos();
+  const { trades, isLoading } = useTrades();
+  const photos = getVaultPhotos(trades);
   const [selectedPhoto, setSelectedPhoto] = useState<VaultPhoto | null>(null);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -140,9 +149,6 @@ export default function Vault() {
                       : "border-primary/40 text-primary bg-primary/10"
                   }`}>
                     {photo.type === "before" ? "BEFORE" : "AFTER"}
-                  </span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded-full border border-border text-muted-foreground bg-muted/50">
-                    #{photo.tradeId}
                   </span>
                 </div>
               </div>
