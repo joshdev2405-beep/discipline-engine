@@ -34,7 +34,7 @@ function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-      <SidebarContent className="py-4">
+      <SidebarContent className="py-4 flex flex-col h-full">
         {/* Logo */}
         <div className={`flex items-center gap-3 px-4 mb-4 ${collapsed ? "justify-center px-2" : ""}`}>
           <img src={logo} alt="Trade Tracker" className="h-8 w-8 object-contain shrink-0" />
