@@ -28,6 +28,7 @@ const navItems = [
 function AppSidebar() {
   const location = useLocation();
   const { state } = useSidebar();
+  const { signOut } = useAuth();
   const collapsed = state === "collapsed";
   const [rankOpen, setRankOpen] = useState(false);
 
