@@ -228,7 +228,7 @@ export default function Analytics() {
             <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="block mt-1 bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary" />
           </div>
         </motion.div>
-      )
+      )}
 
       {/* AI Insights Widget */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card-elevated ai-shimmer">
