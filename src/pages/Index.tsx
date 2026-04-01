@@ -175,6 +175,9 @@ export default function Dashboard() {
         )}
       </motion.div>
 
+      {/* Performance Heatmap */}
+      <PerformanceHeatmap trades={closedTrades} />
+
       {/* Discipline Scores Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <DisciplineScore label="Today" score={today.discipline} trades={today.total} wins={today.wins} />
