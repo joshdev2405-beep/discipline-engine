@@ -18,17 +18,14 @@ const STREAK_TIERS = [
 ];
 
 export default function XPSystemInfo({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const { profile, rankInfo } = useProfile();
+  const { profile } = useProfile();
   const { user } = useAuth();
 
   const { data: recentXP = [] } = useQuery({
     queryKey: ["xp_events_recent", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("xp_events")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(10);
+      const sb = supabase as any;
+      const { data, error } = await sb.from("xp_events").select("*").order("created_at", { ascending: false }).limit(10);
       if (error) throw error;
       return data as Array<{ id: string; event_type: string; xp_amount: number; multiplier: number; created_at: string }>;
     },
@@ -60,7 +57,6 @@ export default function XPSystemInfo({ open, onOpenChange }: { open: boolean; on
             <h2 className="text-lg font-semibold text-foreground">XP Economy</h2>
           </div>
 
-          {/* XP Rules */}
           <div className="space-y-3">
             <span className="stat-label text-primary">XP Sources</span>
             {XP_RULES.map((rule) => (
@@ -75,7 +71,6 @@ export default function XPSystemInfo({ open, onOpenChange }: { open: boolean; on
             ))}
           </div>
 
-          {/* Streak Multipliers */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Flame className="h-4 w-4 text-accent" />
@@ -104,7 +99,6 @@ export default function XPSystemInfo({ open, onOpenChange }: { open: boolean; on
             </div>
           </div>
 
-          {/* Recent XP History */}
           {recentXP.length > 0 && (
             <div className="space-y-2">
               <span className="stat-label">Recent XP</span>

@@ -25,16 +25,15 @@ export default function Leaderboard() {
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["leaderboard", continent],
     queryFn: async () => {
-      // Try RPC first, fallback to direct query
+      const sb = supabase as any;
       try {
-        const { data, error } = await supabase.rpc("get_leaderboard", {
+        const { data, error } = await sb.rpc("get_leaderboard", {
           filter_continent: continent === "Global" ? null : continent,
         });
         if (error) throw error;
         return (data || []) as LeaderboardEntry[];
       } catch {
-        // Fallback: direct query
-        let query = supabase
+        let query = sb
           .from("profiles")
           .select("user_id, username, avatar_url, continent, total_xp, current_streak")
           .order("total_xp", { ascending: false })
@@ -59,14 +58,11 @@ export default function Leaderboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Trophy className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-semibold tracking-tight">Leaderboard</h1>
-        </div>
+      <div className="flex items-center gap-3">
+        <Trophy className="h-6 w-6 text-primary" />
+        <h1 className="text-xl font-semibold tracking-tight">Leaderboard</h1>
       </div>
 
-      {/* Continent Toggle */}
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         {CONTINENTS.map((c) => (
           <button
@@ -84,7 +80,6 @@ export default function Leaderboard() {
         ))}
       </div>
 
-      {/* Leaderboard */}
       <AnimatePresence mode="wait">
         <motion.div
           key={continent}
@@ -113,12 +108,9 @@ export default function Leaderboard() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  className={`glass-card flex items-center gap-4 ${isMe ? "neon-border-teal" : ""} ${
-                    i === 0 ? "glow-amber" : ""
-                  }`}
+                  className={`glass-card flex items-center gap-4 ${isMe ? "neon-border-teal" : ""} ${i === 0 ? "glow-amber" : ""}`}
                 >
                   <div className="w-6 flex justify-center">{getRankIcon(i)}</div>
-
                   {entry.avatar_url ? (
                     <img src={entry.avatar_url} className="h-8 w-8 rounded-full object-cover border border-border" alt="" />
                   ) : (
@@ -126,17 +118,13 @@ export default function Leaderboard() {
                       {entry.username.charAt(0)}
                     </div>
                   )}
-
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className={`text-sm font-semibold ${isMe ? "text-primary" : "text-foreground"}`}>
-                        {entry.username}
-                      </span>
+                      <span className={`text-sm font-semibold ${isMe ? "text-primary" : "text-foreground"}`}>{entry.username}</span>
                       {isMe && <span className="text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded">YOU</span>}
                     </div>
                     <span className="text-[10px] text-muted-foreground">⬡ {rank.rank.name}</span>
                   </div>
-
                   <div className="flex items-center gap-4">
                     {entry.current_streak > 0 && (
                       <div className="flex items-center gap-1">

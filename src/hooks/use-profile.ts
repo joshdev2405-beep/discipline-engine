@@ -28,10 +28,7 @@ const RANKS = [
 export function getRankInfo(xp: number) {
   let rankIndex = 0;
   for (let i = RANKS.length - 1; i >= 0; i--) {
-    if (xp >= RANKS[i].xpRequired) {
-      rankIndex = i;
-      break;
-    }
+    if (xp >= RANKS[i].xpRequired) { rankIndex = i; break; }
   }
   const current = RANKS[rankIndex];
   const next = RANKS[rankIndex + 1];
@@ -55,23 +52,13 @@ export function useProfile() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
-      // Try to get profile
-      let { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-
+      const sb = supabase as any;
+      let { data, error } = await sb.from("profiles").select("*").eq("user_id", user!.id).maybeSingle();
       if (!data && !error) {
-        // Create profile if doesn't exist (e.g. user created before trigger)
-        const { data: newProfile, error: insertError } = await supabase
+        const { data: newProfile, error: insertError } = await sb
           .from("profiles")
-          .insert({
-            user_id: user!.id,
-            username: `Operator-${Math.floor(Math.random() * 9000 + 100)}`,
-          })
-          .select()
-          .single();
+          .insert({ user_id: user!.id, username: `Operator-${Math.floor(Math.random() * 9000 + 100)}` })
+          .select().single();
         if (insertError) throw insertError;
         data = newProfile;
       }
@@ -81,59 +68,37 @@ export function useProfile() {
     enabled: !!user,
   });
 
-  // Record daily login & award XP
   useEffect(() => {
     if (!user || !profile) return;
     recordDailyLogin();
   }, [user?.id, profile?.id]);
 
   const recordDailyLogin = async () => {
-    if (!user) return;
+    if (!user || !profile) return;
     const today = new Date().toISOString().slice(0, 10);
-    if (profile?.last_login_date === today) return;
+    if (profile.last_login_date === today) return;
+    const sb = supabase as any;
 
     try {
-      // Insert daily login (ignore conflict)
-      const { error: loginError } = await supabase
-        .from("daily_logins")
-        .insert({ user_id: user.id, login_date: today })
-        .select()
-        .single();
-      
+      const { error: loginError } = await sb.from("daily_logins").insert({ user_id: user.id, login_date: today }).select().single();
       if (loginError && !loginError.message.includes("duplicate")) throw loginError;
-      if (loginError) return; // Already logged in today
+      if (loginError) return;
 
-      // Calculate streak
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().slice(0, 10);
-      
-      const newStreak = profile?.last_login_date === yesterdayStr
-        ? (profile.current_streak || 0) + 1
-        : 1;
-      
+      const newStreak = profile.last_login_date === yesterdayStr ? (profile.current_streak || 0) + 1 : 1;
       const multiplier = getStreakMultiplier(newStreak);
       const xpGain = Math.round(10 * multiplier);
 
-      // Log XP event
-      await supabase.from("xp_events").insert({
-        user_id: user.id,
-        event_type: "daily_login",
-        xp_amount: xpGain,
-        multiplier,
-      });
-
-      // Update profile
-      await supabase
-        .from("profiles")
-        .update({
-          last_login_date: today,
-          current_streak: newStreak,
-          longest_streak: Math.max(newStreak, profile?.longest_streak || 0),
-          total_xp: (profile?.total_xp || 0) + xpGain,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", user.id);
+      await sb.from("xp_events").insert({ user_id: user.id, event_type: "daily_login", xp_amount: xpGain, multiplier });
+      await sb.from("profiles").update({
+        last_login_date: today,
+        current_streak: newStreak,
+        longest_streak: Math.max(newStreak, profile.longest_streak || 0),
+        total_xp: (profile.total_xp || 0) + xpGain,
+        updated_at: new Date().toISOString(),
+      }).eq("user_id", user.id);
 
       queryClient.invalidateQueries({ queryKey: ["profile"] });
     } catch (err) {
@@ -143,10 +108,8 @@ export function useProfile() {
 
   const updateProfile = useMutation({
     mutationFn: async (updates: Partial<Pick<Profile, "username" | "avatar_url" | "continent">>) => {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq("user_id", user!.id);
+      const sb = supabase as any;
+      const { error } = await sb.from("profiles").update({ ...updates, updated_at: new Date().toISOString() }).eq("user_id", user!.id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["profile"] }),
@@ -154,24 +117,12 @@ export function useProfile() {
 
   const awardXP = async (eventType: string, baseXP: number) => {
     if (!user || !profile) return;
+    const sb = supabase as any;
     const multiplier = getStreakMultiplier(profile.current_streak);
     const xpGain = Math.round(baseXP * multiplier);
 
-    await supabase.from("xp_events").insert({
-      user_id: user.id,
-      event_type: eventType,
-      xp_amount: xpGain,
-      multiplier,
-    });
-
-    await supabase
-      .from("profiles")
-      .update({
-        total_xp: profile.total_xp + xpGain,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", user.id);
-
+    await sb.from("xp_events").insert({ user_id: user.id, event_type: eventType, xp_amount: xpGain, multiplier });
+    await sb.from("profiles").update({ total_xp: profile.total_xp + xpGain, updated_at: new Date().toISOString() }).eq("user_id", user.id);
     queryClient.invalidateQueries({ queryKey: ["profile"] });
     return xpGain;
   };
