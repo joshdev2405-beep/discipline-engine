@@ -211,6 +211,10 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         if (tagError) console.error("Tag insert error:", tagError);
       }
 
+      // Award XP
+      const baseXP = resultR ? 50 + 25 : 50; // journal_entry + result_entry if closed
+      awardXP(resultR ? "trade_closed" : "journal_entry", baseXP);
+
       toast.success("Trade logged!", { description: "Discipline score updated." });
       onSuccess();
       onClose();
