@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { MOOD_LABELS, AVAILABLE_TAGS } from "@/lib/types";
 import { useSettings } from "@/lib/settings";
+import { useProfile } from "@/hooks/use-profile";
 import { BookOpen, Plus, X, Check, Image, ChevronDown, ChevronUp, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
