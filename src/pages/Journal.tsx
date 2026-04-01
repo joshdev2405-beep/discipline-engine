@@ -153,6 +153,7 @@ function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: Trade
 function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const { user } = useAuth();
   const { settings } = useSettings();
+  const { awardXP } = useProfile();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [moodScore, setMoodScore] = useState(3);
   const [followedRules, setFollowedRules] = useState(true);
