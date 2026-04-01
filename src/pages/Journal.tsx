@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { MOOD_LABELS, AVAILABLE_TAGS } from "@/lib/types";
 import { useSettings } from "@/lib/settings";
+import { useProfile } from "@/hooks/use-profile";
 import { BookOpen, Plus, X, Check, Image, ChevronDown, ChevronUp, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -152,6 +153,7 @@ function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: Trade
 function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const { user } = useAuth();
   const { settings } = useSettings();
+  const { awardXP } = useProfile();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [moodScore, setMoodScore] = useState(3);
   const [followedRules, setFollowedRules] = useState(true);
@@ -208,6 +210,10 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         );
         if (tagError) console.error("Tag insert error:", tagError);
       }
+
+      // Award XP
+      const baseXP = resultR ? 50 + 25 : 50; // journal_entry + result_entry if closed
+      awardXP(resultR ? "trade_closed" : "journal_entry", baseXP);
 
       toast.success("Trade logged!", { description: "Discipline score updated." });
       onSuccess();

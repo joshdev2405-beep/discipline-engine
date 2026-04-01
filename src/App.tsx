@@ -14,6 +14,7 @@ import Journal from "./pages/Journal";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import Vault from "./pages/Vault";
+import Leaderboard from "./pages/Leaderboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ function AppContent() {
               <Route path="/journal" element={<Journal />} />
               <Route path="/vault" element={<Vault />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

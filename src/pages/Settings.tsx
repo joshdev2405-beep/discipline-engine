@@ -33,6 +33,7 @@ export default function Settings() {
           <SettingField label="Monthly Target" value={settings.monthlyTradeTarget} onChange={(v) => updateSettings({ monthlyTradeTarget: v })} min={1} max={200} />
           <SettingField label="Daily Cap" value={settings.dailyCap} onChange={(v) => setDailyCap(v)} min={1} max={10} hint="Syncs point matrix rows" />
           <SettingField label="Photo Quota" value={settings.monthlyPhotoQuota} onChange={(v) => updateSettings({ monthlyPhotoQuota: v })} min={0} max={100} />
+          <SettingField label="Monthly Pt Target" value={(settings as any).monthlyPointTarget ?? 90} onChange={(v) => updateSettings({ monthlyPointTarget: v } as any)} min={1} max={500} hint="Heatmap discipline threshold" />
         </div>
       </motion.div>
 

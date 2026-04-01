@@ -97,9 +97,36 @@ function WidgetCard({ defaultMetric, delay, closedTrades }: { defaultMetric: Wid
   );
 }
 
+type DateRange = "week" | "month" | "quarter" | "all" | "custom";
+
+function getDateCutoff(range: DateRange): Date | null {
+  if (range === "all") return null;
+  const now = new Date();
+  if (range === "week") { now.setDate(now.getDate() - 7); return now; }
+  if (range === "month") { now.setMonth(now.getMonth() - 1); return now; }
+  if (range === "quarter") { now.setMonth(now.getMonth() - 3); return now; }
+  return null;
+}
+
 export default function Analytics() {
   const { trades, tags, isLoading } = useTrades();
-  const closedTrades = trades.filter((t) => t.status === "closed");
+  const [dateRange, setDateRange] = useState<DateRange>("all");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+
+  const cutoff = getDateCutoff(dateRange);
+  const filteredTrades = trades.filter((t) => {
+    if (t.status !== "closed") return false;
+    const d = new Date(t.date);
+    if (dateRange === "custom") {
+      if (customStart && d < new Date(customStart)) return false;
+      if (customEnd && d > new Date(customEnd)) return false;
+      return true;
+    }
+    if (cutoff && d < cutoff) return false;
+    return true;
+  });
+  const closedTrades = filteredTrades;
 
   const moodAnalysis = [1, 2, 3, 4, 5].map((mood) => {
     const moodTrades = closedTrades.filter((t) => t.mood_score === mood);
@@ -168,10 +195,40 @@ export default function Analytics() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <BarChart3 className="h-6 w-6 text-primary" />
-        <h1 className="text-xl font-semibold tracking-tight">Analytics</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <BarChart3 className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-semibold tracking-tight">Analytics</h1>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {(["week", "month", "quarter", "all", "custom"] as DateRange[]).map((r) => (
+            <button
+              key={r}
+              onClick={() => setDateRange(r)}
+              className={`px-2.5 py-1 text-[10px] rounded-lg border transition-all ${
+                dateRange === r
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:border-muted-foreground"
+              }`}
+            >
+              {r === "week" ? "1W" : r === "month" ? "1M" : r === "quarter" ? "3M" : r === "all" ? "All" : "Custom"}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {dateRange === "custom" && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="flex gap-3">
+          <div>
+            <label className="stat-label">From</label>
+            <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="block mt-1 bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary" />
+          </div>
+          <div>
+            <label className="stat-label">To</label>
+            <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="block mt-1 bg-muted/50 border border-border rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary" />
+          </div>
+        </motion.div>
+      )}
 
       {/* AI Insights Widget */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card-elevated ai-shimmer">
