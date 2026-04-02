@@ -61,6 +61,18 @@ export default function Dashboard() {
   const tradeProgress = settings.monthlyTradeTarget > 0
     ? Math.min(Math.round((tradesThisMonth / settings.monthlyTradeTarget) * 100), 100) : 0;
 
+  // Monthly points progress
+  const monthlyPointTarget = (settings as any).monthlyPointTarget ?? 90;
+  const monthlyPoints = closedTrades
+    .filter((t) => {
+      const d = new Date(t.date);
+      const now = new Date();
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    })
+    .reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0);
+  const pointsProgress = monthlyPointTarget > 0
+    ? Math.min(Math.round((monthlyPoints / monthlyPointTarget) * 100), 100) : 0;
+
   const adherence = allTime.discipline;
 
   const moodGroups = [1, 2, 3, 4, 5].map((mood) => {
