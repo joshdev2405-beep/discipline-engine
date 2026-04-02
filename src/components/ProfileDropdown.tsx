@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Mail, Globe, Pencil, Check, X, LogOut } from "lucide-react";
+import { User, Mail, Globe, Pencil, Check, X, LogOut, Camera, Loader2 } from "lucide-react";
 import { useProfile, getRankInfo } from "@/hooks/use-profile";
 import { useAuth } from "@/components/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const CONTINENTS = ["Global", "North America", "South America", "Europe", "Asia", "Africa", "Oceania"];
@@ -14,6 +15,8 @@ export default function ProfileDropdown() {
   const [editing, setEditing] = useState(false);
   const [username, setUsername] = useState("");
   const [continent, setContinent] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!profile) return null;
 
@@ -35,6 +38,31 @@ export default function ProfileDropdown() {
     );
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/avatar.${ext}`;
+
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+
+      updateProfile.mutate(
+        { avatar_url: `${publicUrl}?t=${Date.now()}` },
+        { onSuccess: () => toast.success("Avatar updated") }
+      );
+    } catch (err: any) {
+      toast.error("Upload failed", { description: err.message });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="relative">
       <button
@@ -51,6 +79,8 @@ export default function ProfileDropdown() {
         <span className="text-xs font-medium text-foreground hidden md:block">{profile.username}</span>
       </button>
 
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+
       <AnimatePresence>
         {open && (
           <>
@@ -64,13 +94,21 @@ export default function ProfileDropdown() {
               <div className="p-4 space-y-4">
                 {/* Avatar & Name */}
                 <div className="flex items-center gap-3">
-                  {profile.avatar_url ? (
-                    <img src={profile.avatar_url} className="h-12 w-12 rounded-full object-cover border border-border" alt="" />
-                  ) : (
-                    <div className="h-12 w-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-                      <User className="h-6 w-6 text-primary" />
-                    </div>
-                  )}
+                  <div className="relative group">
+                    {profile.avatar_url ? (
+                      <img src={profile.avatar_url} className="h-12 w-12 rounded-full object-cover border border-border" alt="" />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+                        <User className="h-6 w-6 text-primary" />
+                      </div>
+                    )}
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute inset-0 flex items-center justify-center rounded-full bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      {uploading ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Camera className="h-4 w-4 text-primary" />}
+                    </button>
+                  </div>
                   <div className="flex-1 min-w-0">
                     {editing ? (
                       <input
@@ -82,7 +120,9 @@ export default function ProfileDropdown() {
                     ) : (
                       <p className="text-sm font-semibold text-foreground truncate">{profile.username}</p>
                     )}
-                    <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
+                    <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                      <Mail className="h-2.5 w-2.5" /> {user?.email}
+                    </p>
                   </div>
                   {!editing ? (
                     <button onClick={handleEdit} className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
@@ -124,9 +164,7 @@ export default function ProfileDropdown() {
                       onChange={(e) => setContinent(e.target.value)}
                       className="w-full bg-muted/50 border border-border rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
                     >
-                      {CONTINENTS.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
+                      {CONTINENTS.map((c) => (<option key={c} value={c}>{c}</option>))}
                     </select>
                   </div>
                 ) : (
