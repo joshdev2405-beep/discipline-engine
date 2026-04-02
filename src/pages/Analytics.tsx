@@ -6,6 +6,7 @@ import { BarChart3, Settings as GearIcon, Sparkles, Loader2 } from "lucide-react
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import { useSettings, computeDisciplineScore } from "@/lib/settings";
 import { supabase } from "@/integrations/supabase/client";
+import { Target } from "lucide-react";
 
 type WidgetMetric = "win_rate" | "avg_discipline" | "avg_r" | "trade_volume" | "points_per_rule";
 
@@ -252,6 +253,9 @@ export default function Analytics() {
         )}
       </motion.div>
 
+      {/* Progress to Monthly Points Target */}
+      <PointsTargetBar closedTrades={closedTrades} />
+
       {/* Customizable Widget Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <WidgetCard defaultMetric="win_rate" delay={0.05} closedTrades={closedTrades} />
@@ -304,5 +308,38 @@ export default function Analytics() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+function PointsTargetBar({ closedTrades }: { closedTrades: Trade[] }) {
+  const { settings } = useSettings();
+  const monthlyPointTarget = (settings as any).monthlyPointTarget ?? 90;
+  const totalPoints = closedTrades.reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0);
+  const progress = monthlyPointTarget > 0 ? Math.min(Math.round((totalPoints / monthlyPointTarget) * 100), 100) : 0;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.02 }} className="glass-card-elevated">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-primary" />
+          <span className="stat-label">Progress to Monthly Points Target</span>
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {totalPoints.toFixed(1)} / {monthlyPointTarget} pts
+        </span>
+      </div>
+      <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          className="h-full rounded-full bg-primary"
+          style={{ boxShadow: "0 0 12px hsl(var(--emerald-glow) / 0.4)" }}
+        />
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-2">
+        {progress >= 100 ? "🏆 Monthly target achieved!" : progress >= 75 ? "🔥 Almost there!" : progress >= 50 ? "⚡ Halfway through" : "Keep pushing"}
+      </p>
+    </motion.div>
   );
 }

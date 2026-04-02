@@ -61,6 +61,18 @@ export default function Dashboard() {
   const tradeProgress = settings.monthlyTradeTarget > 0
     ? Math.min(Math.round((tradesThisMonth / settings.monthlyTradeTarget) * 100), 100) : 0;
 
+  // Monthly points progress
+  const monthlyPointTarget = (settings as any).monthlyPointTarget ?? 90;
+  const monthlyPoints = closedTrades
+    .filter((t) => {
+      const d = new Date(t.date);
+      const now = new Date();
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    })
+    .reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0);
+  const pointsProgress = monthlyPointTarget > 0
+    ? Math.min(Math.round((monthlyPoints / monthlyPointTarget) * 100), 100) : 0;
+
   const adherence = allTime.discipline;
 
   const moodGroups = [1, 2, 3, 4, 5].map((mood) => {
@@ -144,10 +156,11 @@ export default function Dashboard() {
           </p>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="glass-card-elevated flex flex-col items-center justify-center py-6">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="glass-card-elevated flex flex-col items-center justify-center py-6">
           <span className="stat-label mb-4">Monthly Progress</span>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5">
             <ProgressRing value={tradeProgress} label="Trades" icon={Target} color="primary" />
+            <ProgressRing value={pointsProgress} label="Points" icon={Flame} color="primary" />
             <ProgressRing value={photoProgress} label="Audits" icon={Camera} color="accent" />
           </div>
         </motion.div>

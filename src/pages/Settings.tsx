@@ -1,11 +1,19 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Settings as SettingsIcon, RotateCcw, Target, Camera, Plus, Trash2, BookOpen } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Settings as SettingsIcon, RotateCcw, Target, Plus, Trash2, BookOpen, ListChecks } from "lucide-react";
 import { useSettings, MANDATORY_FIELD_LABELS, type MandatoryField, type TradeRowMetric } from "@/lib/settings";
+import { useConditions, type Condition } from "@/lib/conditions";
 import { toast } from "sonner";
 
 export default function Settings() {
   const { settings, updateSettings, setDailyCap, updateTradeRow, updateMetric, addMetric, removeMetric, toggleMandatoryField, resetSettings } = useSettings();
+  const { conditions } = useConditions();
+
+  // Build combined mandatory fields: static + dynamic conditions
+  const allMandatoryOptions: { key: string; label: string }[] = [
+    ...(Object.keys(MANDATORY_FIELD_LABELS) as MandatoryField[]).map((f) => ({ key: f, label: MANDATORY_FIELD_LABELS[f] })),
+    ...conditions.map((c) => ({ key: `condition_${c.id}`, label: c.name })),
+  ];
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -29,11 +37,11 @@ export default function Settings() {
           <Target className="h-4 w-4 text-accent" />
           <span className="stat-label text-accent">Trade Targets</span>
         </div>
-        <div className="flex items-center gap-8">
-          <SettingField label="Monthly Target" value={settings.monthlyTradeTarget} onChange={(v) => updateSettings({ monthlyTradeTarget: v })} min={1} max={200} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <SettingField label="Monthly Trade Target" value={settings.monthlyTradeTarget} onChange={(v) => updateSettings({ monthlyTradeTarget: v })} min={1} max={200} />
           <SettingField label="Daily Cap" value={settings.dailyCap} onChange={(v) => setDailyCap(v)} min={1} max={10} hint="Syncs point matrix rows" />
           <SettingField label="Photo Quota" value={settings.monthlyPhotoQuota} onChange={(v) => updateSettings({ monthlyPhotoQuota: v })} min={0} max={100} />
-          <SettingField label="Monthly Pt Target" value={(settings as any).monthlyPointTarget ?? 90} onChange={(v) => updateSettings({ monthlyPointTarget: v } as any)} min={1} max={500} hint="Heatmap discipline threshold" />
+          <SettingField label="Monthly Points Target" value={(settings as any).monthlyPointTarget ?? 90} onChange={(v) => updateSettings({ monthlyPointTarget: v } as any)} min={1} max={500} hint="Heatmap discipline threshold" />
         </div>
       </motion.div>
 
@@ -52,6 +60,7 @@ export default function Settings() {
             <TradeRowEditor
               key={row.tradeNumber}
               row={row}
+              conditions={conditions}
               onUpdateDecay={(d) => updateTradeRow(row.tradeNumber, { decayMultiplier: d })}
               onUpdateMetric={(metricId, updates) => updateMetric(row.tradeNumber, metricId, updates)}
               onAddMetric={(m) => addMetric(row.tradeNumber, m)}
@@ -71,19 +80,19 @@ export default function Settings() {
           Fields marked as mandatory will show an amber asterisk and prevent submission if empty.
         </p>
         <div className="flex flex-wrap gap-2">
-          {(Object.keys(MANDATORY_FIELD_LABELS) as MandatoryField[]).map((field) => {
-            const active = settings.mandatoryFields.includes(field);
+          {allMandatoryOptions.map(({ key, label }) => {
+            const active = settings.mandatoryFields.includes(key as any);
             return (
               <button
-                key={field}
-                onClick={() => toggleMandatoryField(field)}
+                key={key}
+                onClick={() => toggleMandatoryField(key as MandatoryField)}
                 className={`px-3 py-1.5 text-xs rounded-lg border transition-all ${
                   active
                     ? "border-primary/40 bg-primary/10 text-primary"
                     : "border-border text-muted-foreground hover:border-muted-foreground"
                 }`}
               >
-                {MANDATORY_FIELD_LABELS[field]}
+                {label}
               </button>
             );
           })}
@@ -98,33 +107,51 @@ function SettingField({ label, value, onChange, min = 0, max = 100, hint }: {
   min?: number; max?: number; hint?: string;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="shrink-0">
-        <label className="text-xs text-muted-foreground">{label}</label>
-        {hint && <p className="text-[10px] text-muted-foreground/60">{hint}</p>}
-      </div>
+    <div className="space-y-1">
+      <label className="text-xs text-muted-foreground">{label}</label>
+      {hint && <p className="text-[10px] text-muted-foreground/60">{hint}</p>}
       <input
         type="number"
         min={min}
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-20 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+        className="w-full bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
       />
     </div>
   );
 }
 
-function TradeRowEditor({ row, onUpdateDecay, onUpdateMetric, onAddMetric, onRemoveMetric }: {
+function TradeRowEditor({ row, conditions, onUpdateDecay, onUpdateMetric, onAddMetric, onRemoveMetric }: {
   row: { tradeNumber: number; metrics: TradeRowMetric[]; decayMultiplier: number };
+  conditions: Condition[];
   onUpdateDecay: (d: number) => void;
   onUpdateMetric: (metricId: string, updates: Partial<TradeRowMetric>) => void;
   onAddMetric: (m: TradeRowMetric) => void;
   onRemoveMetric: (id: string) => void;
 }) {
+  const [showWheel, setShowWheel] = useState(false);
   const [newMetricName, setNewMetricName] = useState("");
 
-  const handleAdd = () => {
+  // Available fields for scroll wheel: built-in + conditions not yet added
+  const existingIds = row.metrics.map((m) => m.id);
+  const builtInFields = [
+    { id: "recording", name: "Recording" },
+    { id: "rules", name: "Rule Following" },
+    { id: "journaling", name: "Journaling" },
+    { id: "before_photo", name: "Before Screenshot" },
+    { id: "after_photo", name: "After Screenshot" },
+  ];
+  const conditionFields = conditions.map((c) => ({ id: `cond_${c.id}`, name: c.name }));
+  const allFields = [...builtInFields, ...conditionFields].filter((f) => !existingIds.includes(f.id));
+
+  const handleAddFromWheel = (field: { id: string; name: string }) => {
+    onAddMetric({ id: field.id, name: field.name, points: 1 });
+    toast.success(`Linked "${field.name}" to Trade #${row.tradeNumber}`);
+    setShowWheel(false);
+  };
+
+  const handleAddCustom = () => {
     if (!newMetricName.trim()) return;
     const id = newMetricName.toLowerCase().replace(/\s+/g, "_") + "_" + Date.now();
     onAddMetric({ id, name: newMetricName.trim(), points: 1 });
@@ -139,10 +166,7 @@ function TradeRowEditor({ row, onUpdateDecay, onUpdateMetric, onAddMetric, onRem
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground">Decay</span>
           <input
-            type="number"
-            min={0}
-            max={2}
-            step={0.1}
+            type="number" min={0} max={2} step={0.1}
             value={row.decayMultiplier}
             onChange={(e) => onUpdateDecay(Number(e.target.value))}
             className="w-16 bg-muted border border-border rounded-lg px-2 py-1 text-xs text-foreground text-center focus:outline-none focus:border-primary"
@@ -159,36 +183,68 @@ function TradeRowEditor({ row, onUpdateDecay, onUpdateMetric, onAddMetric, onRem
               className="flex-1 bg-muted/30 border border-border/50 rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:border-primary"
             />
             <input
-              type="number"
-              min={0}
-              max={10}
+              type="number" min={0} max={10}
               value={metric.points}
               onChange={(e) => onUpdateMetric(metric.id, { points: Number(e.target.value) })}
               className="w-14 bg-muted/30 border border-border/50 rounded px-2 py-1 text-xs text-foreground text-center focus:outline-none focus:border-primary"
             />
             <span className="text-[10px] text-muted-foreground">pts</span>
-            <button
-              onClick={() => onRemoveMetric(metric.id)}
-              className="p-1 text-muted-foreground hover:text-destructive transition-colors"
-            >
+            <button onClick={() => onRemoveMetric(metric.id)} className="p-1 text-muted-foreground hover:text-destructive transition-colors">
               <Trash2 className="h-3 w-3" />
             </button>
           </div>
         ))}
       </div>
 
-      <div className="flex items-center gap-2 mt-2">
-        <input
-          value={newMetricName}
-          onChange={(e) => setNewMetricName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          placeholder="Add metric..."
-          className="flex-1 bg-muted/20 border border-dashed border-border/50 rounded px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary"
-        />
-        <button onClick={handleAdd} className="p-1 text-muted-foreground hover:text-primary transition-colors">
-          <Plus className="h-3.5 w-3.5" />
+      <div className="flex items-center gap-2 mt-3">
+        <button
+          onClick={() => setShowWheel(!showWheel)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] text-primary border border-primary/30 rounded-lg hover:bg-primary/10 transition-colors"
+        >
+          <ListChecks className="h-3 w-3" />
+          Link Field
         </button>
+        <div className="flex-1 flex items-center gap-2">
+          <input
+            value={newMetricName}
+            onChange={(e) => setNewMetricName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAddCustom()}
+            placeholder="Custom metric..."
+            className="flex-1 bg-muted/20 border border-dashed border-border/50 rounded px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary"
+          />
+          <button onClick={handleAddCustom} className="p-1 text-muted-foreground hover:text-primary transition-colors">
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
+
+      {/* Scroll Wheel */}
+      <AnimatePresence>
+        {showWheel && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-border/50 bg-card/80 backdrop-blur-sm divide-y divide-border/20">
+              {allFields.length === 0 ? (
+                <p className="px-3 py-2 text-[10px] text-muted-foreground">All fields already linked</p>
+              ) : (
+                allFields.map((field) => (
+                  <button
+                    key={field.id}
+                    onClick={() => handleAddFromWheel(field)}
+                    className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+                  >
+                    {field.name}
+                  </button>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
