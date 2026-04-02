@@ -144,10 +144,11 @@ export default function Dashboard() {
           </p>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="glass-card-elevated flex flex-col items-center justify-center py-6">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="glass-card-elevated flex flex-col items-center justify-center py-6">
           <span className="stat-label mb-4">Monthly Progress</span>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5">
             <ProgressRing value={tradeProgress} label="Trades" icon={Target} color="primary" />
+            <ProgressRing value={pointsProgress} label="Points" icon={Flame} color="primary" />
             <ProgressRing value={photoProgress} label="Audits" icon={Camera} color="accent" />
           </div>
         </motion.div>
