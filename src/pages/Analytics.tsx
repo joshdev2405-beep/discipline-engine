@@ -6,6 +6,7 @@ import { BarChart3, Settings as GearIcon, Sparkles, Loader2 } from "lucide-react
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import { useSettings, computeDisciplineScore } from "@/lib/settings";
 import { supabase } from "@/integrations/supabase/client";
+import { Target } from "lucide-react";
 
 type WidgetMetric = "win_rate" | "avg_discipline" | "avg_r" | "trade_volume" | "points_per_rule";
 
