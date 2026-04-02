@@ -253,6 +253,9 @@ export default function Analytics() {
         )}
       </motion.div>
 
+      {/* Progress to Monthly Points Target */}
+      <PointsTargetBar closedTrades={closedTrades} />
+
       {/* Customizable Widget Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <WidgetCard defaultMetric="win_rate" delay={0.05} closedTrades={closedTrades} />
