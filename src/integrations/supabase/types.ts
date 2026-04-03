@@ -136,12 +136,14 @@ export type Database = {
           before_screenshot_url: string | null
           created_at: string
           date: string
+          end_date: string
           entry_price: number | null
           followed_rules: boolean
           id: string
           intent_notes: string | null
           mood_score: number
           result_r: number | null
+          start_date: string
           status: string
           stop_price: number | null
           strategy: string
@@ -156,12 +158,14 @@ export type Database = {
           before_screenshot_url?: string | null
           created_at?: string
           date?: string
+          end_date?: string
           entry_price?: number | null
           followed_rules?: boolean
           id?: string
           intent_notes?: string | null
           mood_score?: number
           result_r?: number | null
+          start_date?: string
           status?: string
           stop_price?: number | null
           strategy?: string
@@ -176,12 +180,14 @@ export type Database = {
           before_screenshot_url?: string | null
           created_at?: string
           date?: string
+          end_date?: string
           entry_price?: number | null
           followed_rules?: boolean
           id?: string
           intent_notes?: string | null
           mood_score?: number
           result_r?: number | null
+          start_date?: string
           status?: string
           stop_price?: number | null
           strategy?: string

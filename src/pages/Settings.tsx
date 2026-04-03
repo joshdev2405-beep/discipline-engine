@@ -9,7 +9,6 @@ export default function Settings() {
   const { settings, updateSettings, setDailyCap, updateTradeRow, updateMetric, addMetric, removeMetric, toggleMandatoryField, resetSettings } = useSettings();
   const { conditions } = useConditions();
 
-  // Build combined mandatory fields: static + dynamic conditions
   const allMandatoryOptions: { key: string; label: string }[] = [
     ...(Object.keys(MANDATORY_FIELD_LABELS) as MandatoryField[]).map((f) => ({ key: f, label: MANDATORY_FIELD_LABELS[f] })),
     ...conditions.map((c) => ({ key: `condition_${c.id}`, label: c.name })),
@@ -31,17 +30,17 @@ export default function Settings() {
         </button>
       </motion.div>
 
-      {/* Trade Targets */}
+      {/* Trade Targets — horizontal inline row */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card-elevated">
         <div className="flex items-center gap-2 mb-4">
           <Target className="h-4 w-4 text-accent" />
           <span className="stat-label text-accent">Trade Targets</span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <SettingField label="Monthly Trade Target" value={settings.monthlyTradeTarget} onChange={(v) => updateSettings({ monthlyTradeTarget: v })} min={1} max={200} />
-          <SettingField label="Daily Cap" value={settings.dailyCap} onChange={(v) => setDailyCap(v)} min={1} max={10} hint="Syncs point matrix rows" />
-          <SettingField label="Photo Quota" value={settings.monthlyPhotoQuota} onChange={(v) => updateSettings({ monthlyPhotoQuota: v })} min={0} max={100} />
-          <SettingField label="Monthly Points Target" value={(settings as any).monthlyPointTarget ?? 90} onChange={(v) => updateSettings({ monthlyPointTarget: v } as any)} min={1} max={500} hint="Heatmap discipline threshold" />
+        <div className="flex items-end gap-3">
+          <InlineField label="Monthly Trade Target" value={settings.monthlyTradeTarget} onChange={(v) => updateSettings({ monthlyTradeTarget: v })} min={1} max={200} />
+          <InlineField label="Monthly Points Target" value={(settings as any).monthlyPointTarget ?? 90} onChange={(v) => updateSettings({ monthlyPointTarget: v } as any)} min={1} max={500} />
+          <InlineField label="Photo Quota" value={settings.monthlyPhotoQuota} onChange={(v) => updateSettings({ monthlyPhotoQuota: v })} min={0} max={100} />
+          <InlineField label="Daily Cap" value={settings.dailyCap} onChange={(v) => setDailyCap(v)} min={1} max={10} />
         </div>
       </motion.div>
 
@@ -102,21 +101,19 @@ export default function Settings() {
   );
 }
 
-function SettingField({ label, value, onChange, min = 0, max = 100, hint }: {
-  label: string; value: number; onChange: (v: number) => void;
-  min?: number; max?: number; hint?: string;
+function InlineField({ label, value, onChange, min = 0, max = 100 }: {
+  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number;
 }) {
   return (
-    <div className="space-y-1">
-      <label className="text-xs text-muted-foreground">{label}</label>
-      {hint && <p className="text-[10px] text-muted-foreground/60">{hint}</p>}
+    <div className="flex-1 min-w-0">
+      <label className="text-[10px] uppercase tracking-widest text-muted-foreground whitespace-nowrap">{label}</label>
       <input
         type="number"
         min={min}
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+        className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
       />
     </div>
   );
@@ -133,7 +130,6 @@ function TradeRowEditor({ row, conditions, onUpdateDecay, onUpdateMetric, onAddM
   const [showWheel, setShowWheel] = useState(false);
   const [newMetricName, setNewMetricName] = useState("");
 
-  // Available fields for scroll wheel: built-in + conditions not yet added
   const existingIds = row.metrics.map((m) => m.id);
   const builtInFields = [
     { id: "recording", name: "Recording" },
@@ -218,7 +214,6 @@ function TradeRowEditor({ row, conditions, onUpdateDecay, onUpdateMetric, onAddM
         </div>
       </div>
 
-      {/* Scroll Wheel */}
       <AnimatePresence>
         {showWheel && (
           <motion.div

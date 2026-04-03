@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,11 +8,15 @@ import { MOOD_LABELS, AVAILABLE_TAGS } from "@/lib/types";
 import { useSettings } from "@/lib/settings";
 import { useProfile } from "@/hooks/use-profile";
 import { useConditions, CONDITION_TEMPLATES, type Condition, type ConditionType, type ConditionValue } from "@/lib/conditions";
-import { BookOpen, Plus, X, Check, Image, ChevronDown, ChevronUp, Pencil, Trash2, Loader2, Calendar, AlertTriangle } from "lucide-react";
+import { BookOpen, Plus, X, Check, Image, ChevronDown, ChevronUp, Pencil, Trash2, Loader2, Calendar, AlertTriangle, Smile, Meh, Frown } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 type Trade = {
-  id: string; user_id: string; date: string; trade_number: number; symbol: string;
+  id: string; user_id: string; date: string; start_date: string; end_date: string;
+  trade_number: number; symbol: string;
   strategy: string; entry_price: number | null; stop_price: number | null;
   target_price: number | null; followed_rules: boolean; result_r: number | null;
   mood_score: number; intent_notes: string | null; status: string;
@@ -38,7 +43,7 @@ function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: Trade
           <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isOpen ? "border-accent/40 text-accent bg-accent/5" : "border-primary/30 text-primary bg-primary/5"}`}>
             {isOpen ? "INTENT" : "CLOSED"}
           </span>
-          <span className="text-xs text-muted-foreground w-24 shrink-0">{trade.date}</span>
+          <span className="text-xs text-muted-foreground w-24 shrink-0">{trade.end_date || trade.date}</span>
           <span className="text-[10px] text-muted-foreground">#{trade.trade_number}</span>
           <span className="text-sm font-bold text-foreground w-16">{trade.symbol}</span>
           <span className="text-xs text-muted-foreground flex-1 truncate">{trade.strategy}</span>
@@ -63,6 +68,10 @@ function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: Trade
                   <div><span className="stat-label">Entry</span><p className="text-sm text-foreground">{trade.entry_price != null ? `$${trade.entry_price}` : "—"}</p></div>
                   <div><span className="stat-label">Stop</span><p className="text-sm text-loss">{trade.stop_price != null ? `$${trade.stop_price}` : "—"}</p></div>
                   <div><span className="stat-label">Target</span><p className="text-sm text-profit">{trade.target_price != null ? `$${trade.target_price}` : "—"}</p></div>
+                </div>
+                <div className="flex gap-4 text-xs text-muted-foreground">
+                  <span>Start: {trade.start_date || trade.date}</span>
+                  <span>End: {trade.end_date || trade.date}</span>
                 </div>
                 <div>
                   <span className="stat-label">Mood</span>
@@ -103,11 +112,19 @@ function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: Trade
   );
 }
 
+const SENTIMENT_OPTIONS = [
+  { value: "happy", icon: "😊", label: "Happy" },
+  { value: "neutral", icon: "😐", label: "Neutral" },
+  { value: "stressed", icon: "😰", label: "Stressed" },
+];
+
 function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onChange: (vals: ConditionValue[]) => void }) {
   const { conditions, addCondition, removeCondition } = useConditions();
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newType, setNewType] = useState<ConditionType>("boolean");
+  const [newType, setNewType] = useState<ConditionType>("binary");
+  const [catOptions, setCatOptions] = useState("");
+  const [intensityMax, setIntensityMax] = useState(5);
 
   const getValue = (id: string) => values.find((v) => v.conditionId === id);
   const setValue = (id: string, value: number | boolean | string) => {
@@ -118,8 +135,15 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
   const handleAdd = () => {
     if (!newName.trim()) return;
     const id = newName.toLowerCase().replace(/\s+/g, "_") + "_" + Date.now();
-    addCondition({ id, name: newName.trim(), type: newType });
+    const cond: Condition = { id, name: newName.trim(), type: newType };
+    if (newType === "categorical") {
+      cond.options = catOptions.split(",").map((o) => o.trim()).filter(Boolean);
+      if (cond.options.length === 0) { toast.error("Add at least one option"); return; }
+    }
+    if (newType === "intensity") cond.maxScale = intensityMax;
+    addCondition(cond);
     setNewName("");
+    setCatOptions("");
     setShowAdd(false);
     toast.success(`Condition "${newName.trim()}" added`);
   };
@@ -142,17 +166,36 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
           const val = getValue(cond.id);
           return (
             <div key={cond.id} className="flex items-center gap-2 p-2 bg-muted/20 rounded-lg border border-border/30">
-              <span className="text-xs text-foreground flex-1">{cond.name}</span>
-              {cond.type === "boolean" && (
+              <span className="text-xs text-foreground flex-1 min-w-0 truncate">{cond.name}</span>
+
+              {/* Binary (Yes/No) */}
+              {(cond.type === "binary" || cond.type === "boolean") && (
                 <button
                   onClick={() => setValue(cond.id, !(val?.value as boolean))}
-                  className={`h-6 w-10 rounded-full border relative transition-colors ${val?.value ? "bg-primary/20 border-primary/40" : "bg-muted border-border"}`}
+                  className={`h-6 w-10 rounded-full border relative transition-colors shrink-0 ${val?.value ? "bg-primary/20 border-primary/40" : "bg-muted border-border"}`}
                 >
                   <div className={`absolute top-0.5 h-5 w-5 rounded-full transition-all ${val?.value ? "right-0.5 bg-primary" : "left-0.5 bg-muted-foreground"}`} />
                 </button>
               )}
+
+              {/* Intensity (1-5 or 1-10) */}
+              {cond.type === "intensity" && (
+                <div className="flex items-center gap-0.5">
+                  {Array.from({ length: cond.maxScale || 5 }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setValue(cond.id, n)}
+                      className={`h-6 w-6 rounded text-[9px] border transition-all ${(val?.value as number) === n ? "border-primary bg-primary/20 text-primary" : "border-border/50 text-muted-foreground hover:border-muted-foreground"}`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Scale 1-10 */}
               {cond.type === "scale" && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                     <button
                       key={n}
@@ -164,6 +207,39 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                   ))}
                 </div>
               )}
+
+              {/* Categorical */}
+              {cond.type === "categorical" && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {(cond.options || []).map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setValue(cond.id, opt)}
+                      className={`px-2 py-0.5 text-[10px] rounded-full border transition-all ${val?.value === opt ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-muted-foreground"}`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Sentiment */}
+              {cond.type === "sentiment" && (
+                <div className="flex items-center gap-1">
+                  {SENTIMENT_OPTIONS.map((s) => (
+                    <button
+                      key={s.value}
+                      onClick={() => setValue(cond.id, s.value)}
+                      className={`h-7 w-7 rounded-full flex items-center justify-center text-sm border transition-all ${val?.value === s.value ? "border-primary bg-primary/10 scale-110" : "border-border/50 hover:border-muted-foreground"}`}
+                      title={s.label}
+                    >
+                      {s.icon}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Text */}
               {cond.type === "text" && (
                 <input
                   value={(val?.value as string) || ""}
@@ -172,7 +248,8 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                   placeholder="Enter note..."
                 />
               )}
-              <button onClick={() => removeCondition(cond.id)} className="p-1 text-muted-foreground hover:text-destructive transition-colors">
+
+              <button onClick={() => removeCondition(cond.id)} className="p-1 text-muted-foreground hover:text-destructive transition-colors shrink-0">
                 <Trash2 className="h-3 w-3" />
               </button>
             </div>
@@ -192,12 +269,12 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                 className="w-full bg-muted/30 border border-border/50 rounded px-2 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
                 autoFocus
               />
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {CONDITION_TEMPLATES.map((tmpl) => (
                   <button
                     key={tmpl.type}
                     onClick={() => setNewType(tmpl.type)}
-                    className={`px-2.5 py-1 text-[10px] rounded-lg border transition-all ${newType === tmpl.type ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-muted-foreground"}`}
+                    className={`px-2 py-1 text-[10px] rounded-lg border transition-all ${newType === tmpl.type ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-muted-foreground"}`}
                   >
                     {tmpl.label}
                   </button>
@@ -206,6 +283,27 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
               <p className="text-[9px] text-muted-foreground/60">
                 {CONDITION_TEMPLATES.find((t) => t.type === newType)?.example}
               </p>
+
+              {newType === "categorical" && (
+                <input
+                  value={catOptions}
+                  onChange={(e) => setCatOptions(e.target.value)}
+                  placeholder="Options (comma-separated): Trending, Ranging, Choppy"
+                  className="w-full bg-muted/30 border border-border/50 rounded px-2 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                />
+              )}
+
+              {newType === "intensity" && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground">Max:</span>
+                  {[5, 10].map((n) => (
+                    <button key={n} onClick={() => setIntensityMax(n)} className={`px-2 py-0.5 text-[10px] rounded border ${intensityMax === n ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>
+                      1-{n}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div className="flex justify-end gap-1.5">
                 <button onClick={() => setShowAdd(false)} className="px-3 py-1 text-[10px] text-muted-foreground border border-border rounded-lg hover:bg-secondary/50">Cancel</button>
                 <button onClick={handleAdd} className="px-3 py-1 text-[10px] bg-primary text-primary-foreground rounded-lg hover:bg-primary/90">Add Condition</button>
@@ -214,6 +312,33 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function CompactDatePicker({ label, value, onChange }: { label: string; value: Date; onChange: (d: Date) => void }) {
+  return (
+    <div className="flex-1">
+      <label className="stat-label flex items-center gap-1 mb-1">
+        <Calendar className="h-2.5 w-2.5" /> {label}
+      </label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button className="w-full flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:border-primary/40 transition-colors backdrop-blur-sm">
+            <Calendar className="h-3 w-3 text-muted-foreground" />
+            {format(value, "MMM d, yyyy")}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0 bg-card/95 backdrop-blur-xl border-border/50" align="start">
+          <CalendarComponent
+            mode="single"
+            selected={value}
+            onSelect={(d) => d && onChange(d)}
+            initialFocus
+            className={cn("p-3 pointer-events-auto")}
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
@@ -234,7 +359,8 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
   const [stopPrice, setStopPrice] = useState("");
   const [targetPrice, setTargetPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [tradeDate, setTradeDate] = useState(new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
   const [conditionValues, setConditionValues] = useState<ConditionValue[]>([]);
 
   const toggleTag = (tag: string) => {
@@ -243,11 +369,10 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
 
   const isMandatory = (field: string) => settings.mandatoryFields.includes(field as any);
 
-  // Check if date is more than 3 days ago
+  // Check if end date is more than 3 days ago
   const isDateTooOld = () => {
-    const selected = new Date(tradeDate);
     const now = new Date();
-    const diffMs = now.getTime() - selected.getTime();
+    const diffMs = now.getTime() - endDate.getTime();
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
     return diffDays > 3;
   };
@@ -264,11 +389,16 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
       return;
     }
 
+    const startISO = format(startDate, "yyyy-MM-dd");
+    const endISO = format(endDate, "yyyy-MM-dd");
+
     setSubmitting(true);
     try {
       const { data: trade, error } = await supabase.from("trades").insert({
         user_id: user.id,
-        date: tradeDate,
+        date: endISO,
+        start_date: startISO,
+        end_date: endISO,
         symbol: symbol.trim().toUpperCase(),
         strategy: strategy.trim(),
         trade_number: tradeNumber,
@@ -280,24 +410,24 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         stop_price: stopPrice ? parseFloat(stopPrice) : null,
         target_price: targetPrice ? parseFloat(targetPrice) : null,
         status: resultR ? "closed" : "open",
-      }).select().single();
+      } as any).select().single();
 
       if (error) throw error;
 
       if (selectedTags.length > 0 && trade) {
         const { error: tagError } = await supabase.from("trade_tags").insert(
-          selectedTags.map((tag) => ({ trade_id: trade.id, tag }))
+          selectedTags.map((tag) => ({ trade_id: (trade as any).id, tag }))
         );
         if (tagError) console.error("Tag insert error:", tagError);
       }
 
-      // Award XP (no points if date > 3 days old)
+      // Award XP (no points if end date > 3 days old)
       if (!isDateTooOld()) {
         const baseXP = resultR ? 50 + 25 : 50;
         awardXP(resultR ? "trade_closed" : "journal_entry", baseXP);
       }
 
-      toast.success("Trade logged!", { description: isDateTooOld() ? "No XP awarded — trade is older than 3 days." : "Discipline score updated." });
+      toast.success("Trade logged!", { description: isDateTooOld() ? "No XP awarded — trade end date is older than 3 days." : "Discipline score updated." });
       onSuccess();
       onClose();
     } catch (error: any) {
@@ -317,24 +447,17 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X className="h-4 w-4" /></button>
       </div>
 
-      {/* Date field */}
-      <div>
-        <label className="stat-label flex items-center gap-1.5">
-          <Calendar className="h-3 w-3" /> Date
-        </label>
-        <input
-          type="date"
-          value={tradeDate}
-          onChange={(e) => setTradeDate(e.target.value)}
-          className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-        />
-        {isDateTooOld() && (
-          <div className="flex items-center gap-1.5 mt-1.5 text-accent">
-            <AlertTriangle className="h-3 w-3" />
-            <span className="text-[10px]">Trade is older than 3 days — no XP will be awarded</span>
-          </div>
-        )}
+      {/* Compact Start/End Date pickers */}
+      <div className="flex items-start gap-3">
+        <CompactDatePicker label="Start Date" value={startDate} onChange={setStartDate} />
+        <CompactDatePicker label="End Date" value={endDate} onChange={setEndDate} />
       </div>
+      {isDateTooOld() && (
+        <div className="flex items-center gap-1.5 text-accent -mt-2">
+          <AlertTriangle className="h-3 w-3" />
+          <span className="text-[10px]">End date is older than 3 days — no XP will be awarded</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div>
