@@ -118,7 +118,7 @@ export default function Analytics() {
   const cutoff = getDateCutoff(dateRange);
   const filteredTrades = trades.filter((t) => {
     if (t.status !== "closed") return false;
-    const d = new Date(t.date);
+    const d = new Date((t as any).end_date || t.date);
     if (dateRange === "custom") {
       if (customStart && d < new Date(customStart)) return false;
       if (customEnd && d > new Date(customEnd)) return false;

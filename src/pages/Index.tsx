@@ -34,7 +34,7 @@ export default function Dashboard() {
   const closedTrades = trades.filter((t) => t.status === "closed");
 
   const todayTrades = trades.filter(
-    (t) => t.date === new Date().toISOString().slice(0, 10) && t.status === "closed"
+    (t) => (t.end_date || t.date) === new Date().toISOString().slice(0, 10) && t.status === "closed"
   );
   const dailyScore = todayTrades.length > 0
     ? Math.round(
