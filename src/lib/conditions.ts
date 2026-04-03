@@ -1,11 +1,13 @@
 import { create } from "zustand";
 
-export type ConditionType = "scale" | "boolean" | "text";
+export type ConditionType = "binary" | "intensity" | "scale" | "boolean" | "text" | "categorical" | "sentiment";
 
 export interface Condition {
   id: string;
   name: string;
   type: ConditionType;
+  options?: string[]; // for categorical type
+  maxScale?: number;  // for intensity (5 or 10)
 }
 
 export interface ConditionValue {
@@ -21,8 +23,11 @@ interface ConditionsStore {
 }
 
 const CONDITION_TEMPLATES: { type: ConditionType; label: string; example: string }[] = [
-  { type: "scale", label: "Scale 1-10", example: "e.g. Sleep Quality, Energy Level" },
-  { type: "boolean", label: "Boolean / Toggle", example: "e.g. Drank Water, Exercised" },
+  { type: "binary", label: "Binary (Yes/No)", example: "e.g. Pre-Market Prep Done, Followed Checklist" },
+  { type: "intensity", label: "Intensity (1-5)", example: "e.g. Confidence Level, Focus Level" },
+  { type: "scale", label: "Scale (1-10)", example: "e.g. Sleep Quality, Energy Level" },
+  { type: "categorical", label: "Categorical", example: "e.g. Market Regime (Trending / Ranging / Choppy)" },
+  { type: "sentiment", label: "Sentiment", example: "e.g. Pre-Trade Feeling (😊 😐 😰)" },
   { type: "text", label: "Text Note", example: "e.g. Pre-market Observation" },
 ];
 

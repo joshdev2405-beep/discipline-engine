@@ -6,6 +6,8 @@ export type Trade = {
   id: string;
   user_id: string;
   date: string;
+  start_date: string;
+  end_date: string;
   trade_number: number;
   symbol: string;
   strategy: string;
