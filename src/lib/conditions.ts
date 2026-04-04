@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type ConditionType = "binary" | "intensity" | "scale" | "boolean" | "text" | "categorical" | "sentiment";
+export type ConditionType = "binary" | "scale" | "boolean" | "text" | "categorical" | "sentiment";
 
 export interface Condition {
   id: string;
