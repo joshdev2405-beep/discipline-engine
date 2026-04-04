@@ -335,6 +335,7 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
   const { user } = useAuth();
   const { settings } = useSettings();
   const { awardXP } = useProfile();
+  const { operatorMode } = useOperatorMode(user?.email);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [moodScore, setMoodScore] = useState(3);
   const [followedRules, setFollowedRules] = useState(true);
