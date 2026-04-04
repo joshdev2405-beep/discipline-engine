@@ -194,7 +194,6 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                   ))}
                 </div>
               )}
-              )}
 
               {/* Categorical */}
               {cond.type === "categorical" && (
