@@ -3,6 +3,8 @@ import { NavLink, useLocation } from "react-router-dom";
 import { LayoutDashboard, BookOpen, BarChart3, Settings, ImageIcon, Trophy, Zap } from "lucide-react";
 import logo from "@/assets/logo-new.jpeg";
 import { useProfile } from "@/hooks/use-profile";
+import { useAuth } from "@/components/AuthProvider";
+import { useOperatorMode } from "@/lib/operator-mode";
 import RankProgression from "@/components/RankProgression";
 import XPSystemInfo from "@/components/XPSystemInfo";
 import ProfileDropdown from "@/components/ProfileDropdown";
@@ -35,6 +37,8 @@ function AppSidebar() {
   const [rankOpen, setRankOpen] = useState(false);
   const [xpInfoOpen, setXpInfoOpen] = useState(false);
   const { profile, rankInfo } = useProfile();
+  const { user } = useAuth();
+  const { operatorMode } = useOperatorMode(user?.email);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
@@ -82,6 +86,12 @@ function AppSidebar() {
                     />
                   </div>
                 </div>
+                {operatorMode && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.6)]" />
+                    <span className="text-[9px] text-amber-500/80 whitespace-nowrap">Operator Mode</span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center gap-1">

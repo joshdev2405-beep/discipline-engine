@@ -8,6 +8,7 @@ import { MOOD_LABELS, AVAILABLE_TAGS } from "@/lib/types";
 import { useSettings } from "@/lib/settings";
 import { useProfile } from "@/hooks/use-profile";
 import { useConditions, CONDITION_TEMPLATES, type Condition, type ConditionType, type ConditionValue } from "@/lib/conditions";
+import { useOperatorMode } from "@/lib/operator-mode";
 import { BookOpen, Plus, X, Check, Image, ChevronDown, ChevronUp, Pencil, Trash2, Loader2, Calendar, AlertTriangle, Smile, Meh, Frown } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -113,9 +114,11 @@ function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: Trade
 }
 
 const SENTIMENT_OPTIONS = [
-  { value: "happy", icon: "😊", label: "Happy" },
+  { value: "fired_up", icon: "🚀", label: "Fired Up" },
+  { value: "diamond", icon: "💎", label: "Diamond Hands" },
   { value: "neutral", icon: "😐", label: "Neutral" },
-  { value: "stressed", icon: "😰", label: "Stressed" },
+  { value: "bearish", icon: "📉", label: "Bearish" },
+  { value: "tilted", icon: "😤", label: "Tilted" },
 ];
 
 function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onChange: (vals: ConditionValue[]) => void }) {
@@ -123,8 +126,8 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState<ConditionType>("binary");
+  const [scaleMax, setScaleMax] = useState(5);
   const [catOptions, setCatOptions] = useState("");
-  const [intensityMax, setIntensityMax] = useState(5);
 
   const getValue = (id: string) => values.find((v) => v.conditionId === id);
   const setValue = (id: string, value: number | boolean | string) => {
@@ -140,7 +143,7 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
       cond.options = catOptions.split(",").map((o) => o.trim()).filter(Boolean);
       if (cond.options.length === 0) { toast.error("Add at least one option"); return; }
     }
-    if (newType === "intensity") cond.maxScale = intensityMax;
+    if (newType === "scale") cond.maxScale = scaleMax;
     addCondition(cond);
     setNewName("");
     setCatOptions("");
@@ -178,25 +181,10 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                 </button>
               )}
 
-              {/* Intensity (1-5 or 1-10) */}
-              {cond.type === "intensity" && (
-                <div className="flex items-center gap-0.5">
-                  {Array.from({ length: cond.maxScale || 5 }, (_, i) => i + 1).map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => setValue(cond.id, n)}
-                      className={`h-6 w-6 rounded text-[9px] border transition-all ${(val?.value as number) === n ? "border-primary bg-primary/20 text-primary" : "border-border/50 text-muted-foreground hover:border-muted-foreground"}`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Scale 1-10 */}
+              {/* Scale (1-N) */}
               {cond.type === "scale" && (
                 <div className="flex items-center gap-0.5">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                  {Array.from({ length: cond.maxScale || 5 }, (_, i) => i + 1).map((n) => (
                     <button
                       key={n}
                       onClick={() => setValue(cond.id, n)}
@@ -293,11 +281,11 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                 />
               )}
 
-              {newType === "intensity" && (
+              {newType === "scale" && (
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-muted-foreground">Max:</span>
                   {[5, 10].map((n) => (
-                    <button key={n} onClick={() => setIntensityMax(n)} className={`px-2 py-0.5 text-[10px] rounded border ${intensityMax === n ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>
+                    <button key={n} onClick={() => setScaleMax(n)} className={`px-2 py-0.5 text-[10px] rounded border ${scaleMax === n ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>
                       1-{n}
                     </button>
                   ))}
@@ -347,6 +335,7 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
   const { user } = useAuth();
   const { settings } = useSettings();
   const { awardXP } = useProfile();
+  const { operatorMode } = useOperatorMode(user?.email);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [moodScore, setMoodScore] = useState(3);
   const [followedRules, setFollowedRules] = useState(true);
@@ -371,6 +360,7 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
 
   // Check if end date is more than 3 days ago
   const isDateTooOld = () => {
+    if (operatorMode) return false;
     const now = new Date();
     const diffMs = now.getTime() - endDate.getTime();
     const diffDays = diffMs / (1000 * 60 * 60 * 24);

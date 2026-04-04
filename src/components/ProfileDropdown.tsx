@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Mail, Globe, Pencil, Check, X, LogOut, Camera, Loader2 } from "lucide-react";
+import { User, Mail, Globe, Pencil, Check, X, LogOut, Camera, Loader2, Shield } from "lucide-react";
 import { useProfile, getRankInfo } from "@/hooks/use-profile";
 import { useAuth } from "@/components/AuthProvider";
+import { useOperatorMode } from "@/lib/operator-mode";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -11,6 +12,7 @@ const CONTINENTS = ["Global", "North America", "South America", "Europe", "Asia"
 export default function ProfileDropdown() {
   const { profile, updateProfile, rankInfo } = useProfile();
   const { user, signOut } = useAuth();
+  const { isAdmin, operatorMode, setOperatorMode } = useOperatorMode(user?.email);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [username, setUsername] = useState("");
@@ -90,7 +92,9 @@ export default function ProfileDropdown() {
             <User className="h-3.5 w-3.5 text-primary" />
           </div>
         )}
+        {isAdmin && <Shield className="h-3 w-3 text-primary/60 hidden md:block" />}
         <span className="text-xs font-medium text-foreground hidden md:block">{profile.username}</span>
+        {operatorMode && <span className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.6)] hidden md:block" />}
       </button>
 
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
@@ -187,7 +191,21 @@ export default function ProfileDropdown() {
                 </div>
               )}
 
-              <div className="border-t border-border pt-3">
+              <div className="border-t border-border pt-3 space-y-1">
+                {isAdmin && (
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-amber-500/80" />
+                      <span className="text-sm text-muted-foreground">Operator Mode</span>
+                    </div>
+                    <button
+                      onClick={() => setOperatorMode(!operatorMode)}
+                      className={`h-5 w-9 rounded-full border relative transition-colors shrink-0 ${operatorMode ? "bg-amber-500/20 border-amber-500/40" : "bg-muted border-border"}`}
+                    >
+                      <div className={`absolute top-0.5 h-4 w-4 rounded-full transition-all ${operatorMode ? "right-0.5 bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)]" : "left-0.5 bg-muted-foreground"}`} />
+                    </button>
+                  </div>
+                )}
                 <button
                   onClick={() => { setOpen(false); signOut(); }}
                   className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
