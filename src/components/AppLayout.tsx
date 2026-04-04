@@ -3,6 +3,8 @@ import { NavLink, useLocation } from "react-router-dom";
 import { LayoutDashboard, BookOpen, BarChart3, Settings, ImageIcon, Trophy, Zap } from "lucide-react";
 import logo from "@/assets/logo-new.jpeg";
 import { useProfile } from "@/hooks/use-profile";
+import { useAuth } from "@/components/AuthProvider";
+import { useOperatorMode } from "@/lib/operator-mode";
 import RankProgression from "@/components/RankProgression";
 import XPSystemInfo from "@/components/XPSystemInfo";
 import ProfileDropdown from "@/components/ProfileDropdown";
