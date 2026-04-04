@@ -8,6 +8,7 @@ import { MOOD_LABELS, AVAILABLE_TAGS } from "@/lib/types";
 import { useSettings } from "@/lib/settings";
 import { useProfile } from "@/hooks/use-profile";
 import { useConditions, CONDITION_TEMPLATES, type Condition, type ConditionType, type ConditionValue } from "@/lib/conditions";
+import { useOperatorMode } from "@/lib/operator-mode";
 import { BookOpen, Plus, X, Check, Image, ChevronDown, ChevronUp, Pencil, Trash2, Loader2, Calendar, AlertTriangle, Smile, Meh, Frown } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
