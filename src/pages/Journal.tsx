@@ -180,8 +180,8 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                 </button>
               )}
 
-              {/* Intensity (1-5 or 1-10) */}
-              {cond.type === "intensity" && (
+              {/* Scale (1-N) */}
+              {cond.type === "scale" && (
                 <div className="flex items-center gap-0.5">
                   {Array.from({ length: cond.maxScale || 5 }, (_, i) => i + 1).map((n) => (
                     <button
@@ -194,20 +194,6 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                   ))}
                 </div>
               )}
-
-              {/* Scale 1-10 */}
-              {cond.type === "scale" && (
-                <div className="flex items-center gap-0.5">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => setValue(cond.id, n)}
-                      className={`h-6 w-6 rounded text-[9px] border transition-all ${(val?.value as number) === n ? "border-primary bg-primary/20 text-primary" : "border-border/50 text-muted-foreground hover:border-muted-foreground"}`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
               )}
 
               {/* Categorical */}
