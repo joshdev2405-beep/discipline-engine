@@ -125,7 +125,7 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState<ConditionType>("binary");
-  const [catOptions, setCatOptions] = useState("");
+  const [scaleMax, setScaleMax] = useState(5);
   const [intensityMax, setIntensityMax] = useState(5);
 
   const getValue = (id: string) => values.find((v) => v.conditionId === id);
