@@ -360,6 +360,7 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
 
   // Check if end date is more than 3 days ago
   const isDateTooOld = () => {
+    if (operatorMode) return false;
     const now = new Date();
     const diffMs = now.getTime() - endDate.getTime();
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
