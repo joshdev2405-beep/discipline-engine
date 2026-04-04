@@ -142,7 +142,7 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
       cond.options = catOptions.split(",").map((o) => o.trim()).filter(Boolean);
       if (cond.options.length === 0) { toast.error("Add at least one option"); return; }
     }
-    if (newType === "intensity") cond.maxScale = intensityMax;
+    if (newType === "scale") cond.maxScale = scaleMax;
     addCondition(cond);
     setNewName("");
     setCatOptions("");
