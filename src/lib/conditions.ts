@@ -24,10 +24,9 @@ interface ConditionsStore {
 
 const CONDITION_TEMPLATES: { type: ConditionType; label: string; example: string }[] = [
   { type: "binary", label: "Binary (Yes/No)", example: "e.g. Pre-Market Prep Done, Followed Checklist" },
-  { type: "intensity", label: "Intensity (1-5)", example: "e.g. Confidence Level, Focus Level" },
-  { type: "scale", label: "Scale (1-10)", example: "e.g. Sleep Quality, Energy Level" },
+  { type: "scale", label: "Scale (1-5 / 1-10)", example: "e.g. Confidence Level, Sleep Quality" },
   { type: "categorical", label: "Categorical", example: "e.g. Market Regime (Trending / Ranging / Choppy)" },
-  { type: "sentiment", label: "Sentiment", example: "e.g. Pre-Trade Feeling (😊 😐 😰)" },
+  { type: "sentiment", label: "Sentiment", example: "e.g. Pre-Trade Feeling (🚀 💎 😐 📉 😤)" },
   { type: "text", label: "Text Note", example: "e.g. Pre-market Observation" },
 ];
 
