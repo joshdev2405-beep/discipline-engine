@@ -281,11 +281,11 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                 />
               )}
 
-              {newType === "intensity" && (
+              {newType === "scale" && (
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-muted-foreground">Max:</span>
                   {[5, 10].map((n) => (
-                    <button key={n} onClick={() => setIntensityMax(n)} className={`px-2 py-0.5 text-[10px] rounded border ${intensityMax === n ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>
+                    <button key={n} onClick={() => setScaleMax(n)} className={`px-2 py-0.5 text-[10px] rounded border ${scaleMax === n ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>
                       1-{n}
                     </button>
                   ))}
