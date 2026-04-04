@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +9,7 @@ import { useSettings } from "@/lib/settings";
 import { useProfile } from "@/hooks/use-profile";
 import { useConditions, CONDITION_TEMPLATES, type Condition, type ConditionType, type ConditionValue } from "@/lib/conditions";
 import { useOperatorMode } from "@/lib/operator-mode";
-import { BookOpen, Plus, X, Check, Image, ChevronDown, ChevronUp, Pencil, Trash2, Loader2, Calendar, AlertTriangle, Smile, Meh, Frown } from "lucide-react";
+import { BookOpen, Plus, X, Check, Image, ChevronDown, ChevronUp, Pencil, Trash2, Loader2, Calendar, AlertTriangle, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -33,6 +33,13 @@ const MoodDot = ({ score, size = "sm" }: { score: number; size?: "sm" | "md" }) 
   return <div className={`${s} rounded-full ${colors[score] ?? "bg-muted"}`} title={MOOD_LABELS[score]} />;
 };
 
+/** Format result with +/- prefix for display only */
+function formatResultR(val: number | null): string {
+  if (val == null) return "—";
+  const prefix = val > 0 ? "+" : "";
+  return `${prefix}${val}R`;
+}
+
 function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: TradeTag[]; onEdit: () => void; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const isOpen = trade.status === "open";
@@ -44,14 +51,16 @@ function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: Trade
           <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isOpen ? "border-accent/40 text-accent bg-accent/5" : "border-primary/30 text-primary bg-primary/5"}`}>
             {isOpen ? "INTENT" : "CLOSED"}
           </span>
-          <span className="text-xs text-muted-foreground w-24 shrink-0">{trade.end_date || trade.date}</span>
+          <span className="text-xs text-muted-foreground w-24 shrink-0">
+            {isOpen ? "TBD" : (trade.end_date || trade.date)}
+          </span>
           <span className="text-[10px] text-muted-foreground">#{trade.trade_number}</span>
           <span className="text-sm font-bold text-foreground w-16">{trade.symbol}</span>
           <span className="text-xs text-muted-foreground flex-1 truncate">{trade.strategy}</span>
           <MoodDot score={trade.mood_score} />
           {trade.followed_rules ? <Check className="h-3.5 w-3.5 text-primary" /> : <X className="h-3.5 w-3.5 text-loss" />}
           <span className={`text-xs font-semibold w-12 text-right ${trade.result_r == null ? "text-muted-foreground" : (trade.result_r ?? 0) >= 0 ? "text-profit" : "text-loss"}`}>
-            {trade.result_r != null ? `${trade.result_r > 0 ? "+" : ""}${trade.result_r}R` : "—"}
+            {formatResultR(trade.result_r)}
           </span>
           {expanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
         </button>
@@ -72,7 +81,7 @@ function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: Trade
                 </div>
                 <div className="flex gap-4 text-xs text-muted-foreground">
                   <span>Start: {trade.start_date || trade.date}</span>
-                  <span>End: {trade.end_date || trade.date}</span>
+                  <span>End: {isOpen ? "TBD" : (trade.end_date || trade.date)}</span>
                 </div>
                 <div>
                   <span className="stat-label">Mood</span>
@@ -97,10 +106,19 @@ function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: Trade
                   <p className="text-xs text-secondary-foreground mt-1 leading-relaxed">{trade.intent_notes || "—"}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  {["Before (Setup)", "After (Result)"].map((lbl) => (
-                    <div key={lbl} className="border border-dashed border-border/50 rounded-lg h-24 flex flex-col items-center justify-center bg-muted/20">
-                      <Image className="h-4 w-4 text-muted-foreground mb-1" />
-                      <span className="text-[10px] text-muted-foreground">{lbl}</span>
+                  {[
+                    { lbl: "Before (Setup)", url: trade.before_screenshot_url },
+                    { lbl: "After (Result)", url: trade.after_screenshot_url },
+                  ].map(({ lbl, url }) => (
+                    <div key={lbl} className="border border-dashed border-border/50 rounded-lg h-24 flex flex-col items-center justify-center bg-muted/20 overflow-hidden">
+                      {url ? (
+                        <img src={url} alt={lbl} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <>
+                          <Image className="h-4 w-4 text-muted-foreground mb-1" />
+                          <span className="text-[10px] text-muted-foreground">{lbl}</span>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -171,7 +189,6 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
             <div key={cond.id} className="flex items-center gap-2 p-2 bg-muted/20 rounded-lg border border-border/30">
               <span className="text-xs text-foreground flex-1 min-w-0 truncate">{cond.name}</span>
 
-              {/* Binary (Yes/No) */}
               {(cond.type === "binary" || cond.type === "boolean") && (
                 <button
                   onClick={() => setValue(cond.id, !(val?.value as boolean))}
@@ -181,7 +198,6 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                 </button>
               )}
 
-              {/* Scale (1-N) */}
               {cond.type === "scale" && (
                 <div className="flex items-center gap-0.5">
                   {Array.from({ length: cond.maxScale || 5 }, (_, i) => i + 1).map((n) => (
@@ -196,7 +212,6 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                 </div>
               )}
 
-              {/* Categorical */}
               {cond.type === "categorical" && (
                 <div className="flex items-center gap-1 flex-wrap">
                   {(cond.options || []).map((opt) => (
@@ -211,7 +226,6 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                 </div>
               )}
 
-              {/* Sentiment */}
               {cond.type === "sentiment" && (
                 <div className="flex items-center gap-1">
                   {SENTIMENT_OPTIONS.map((s) => (
@@ -227,7 +241,6 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
                 </div>
               )}
 
-              {/* Text */}
               {cond.type === "text" && (
                 <input
                   value={(val?.value as string) || ""}
@@ -304,29 +317,81 @@ function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onC
   );
 }
 
-function CompactDatePicker({ label, value, onChange }: { label: string; value: Date; onChange: (d: Date) => void }) {
+function CompactDatePicker({ label, value, onChange, disabled }: { label: string; value: Date; onChange: (d: Date) => void; disabled?: boolean }) {
   return (
     <div className="flex-1">
       <label className="stat-label flex items-center gap-1 mb-1">
         <Calendar className="h-2.5 w-2.5" /> {label}
       </label>
-      <Popover>
-        <PopoverTrigger asChild>
-          <button className="w-full flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:border-primary/40 transition-colors backdrop-blur-sm">
-            <Calendar className="h-3 w-3 text-muted-foreground" />
-            {format(value, "MMM d, yyyy")}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 bg-card/95 backdrop-blur-xl border-border/50" align="start">
-          <CalendarComponent
-            mode="single"
-            selected={value}
-            onSelect={(d) => d && onChange(d)}
-            initialFocus
-            className={cn("p-3 pointer-events-auto")}
-          />
-        </PopoverContent>
-      </Popover>
+      {disabled ? (
+        <div className="w-full flex items-center gap-2 bg-muted/30 border border-border/50 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground cursor-not-allowed">
+          <Calendar className="h-3 w-3 text-muted-foreground/50" />
+          TBD
+        </div>
+      ) : (
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className="w-full flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground hover:border-primary/40 transition-colors backdrop-blur-sm">
+              <Calendar className="h-3 w-3 text-muted-foreground" />
+              {format(value, "MMM d, yyyy")}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 bg-card/95 backdrop-blur-xl border-border/50" align="start">
+            <CalendarComponent
+              mode="single"
+              selected={value}
+              onSelect={(d) => d && onChange(d)}
+              initialFocus
+              className={cn("p-3 pointer-events-auto")}
+            />
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  );
+}
+
+function ScreenshotUploader({ label, field, file, onFileChange, previewUrl, isMandatory }: {
+  label: string;
+  field: string;
+  file: File | null;
+  onFileChange: (f: File | null) => void;
+  previewUrl: string | null;
+  isMandatory: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => onFileChange(e.target.files?.[0] || null)}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="w-full border border-dashed border-border/50 rounded-lg h-20 flex flex-col items-center justify-center cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-all overflow-hidden relative"
+      >
+        {previewUrl ? (
+          <>
+            <img src={previewUrl} alt={label} className="absolute inset-0 w-full h-full object-cover rounded-lg opacity-80" />
+            <div className="absolute inset-0 bg-background/40 flex items-center justify-center">
+              <Upload className="h-4 w-4 text-primary" />
+            </div>
+          </>
+        ) : (
+          <>
+            <Upload className="h-4 w-4 text-muted-foreground mb-1" />
+            <span className="text-[10px] text-muted-foreground">{label}{isMandatory && <span className="text-accent">*</span>}</span>
+          </>
+        )}
+      </button>
+      {file && (
+        <p className="text-[9px] text-primary mt-1 truncate">{file.name}</p>
+      )}
     </div>
   );
 }
@@ -350,7 +415,22 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
   const [submitting, setSubmitting] = useState(false);
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
+  const [isCurrentlyOpen, setIsCurrentlyOpen] = useState(false);
   const [conditionValues, setConditionValues] = useState<ConditionValue[]>([]);
+  const [beforeFile, setBeforeFile] = useState<File | null>(null);
+  const [afterFile, setAfterFile] = useState<File | null>(null);
+  const [beforePreview, setBeforePreview] = useState<string | null>(null);
+  const [afterPreview, setAfterPreview] = useState<string | null>(null);
+
+  const handleFileChange = (type: "before" | "after", file: File | null) => {
+    if (type === "before") {
+      setBeforeFile(file);
+      setBeforePreview(file ? URL.createObjectURL(file) : null);
+    } else {
+      setAfterFile(file);
+      setAfterPreview(file ? URL.createObjectURL(file) : null);
+    }
+  };
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
@@ -358,13 +438,23 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
 
   const isMandatory = (field: string) => settings.mandatoryFields.includes(field as any);
 
-  // Check if end date is more than 3 days ago
   const isDateTooOld = () => {
     if (operatorMode) return false;
+    if (isCurrentlyOpen) return false;
     const now = new Date();
     const diffMs = now.getTime() - endDate.getTime();
     const diffDays = diffMs / (1000 * 60 * 60 * 24);
     return diffDays > 3;
+  };
+
+  const uploadScreenshot = async (file: File, tradeId: string, type: "before" | "after"): Promise<string | null> => {
+    if (!user) return null;
+    const ext = file.name.split(".").pop() || "png";
+    const path = `${user.id}/${tradeId}_${type}.${ext}`;
+    const { error } = await supabase.storage.from("trade-screenshots").upload(path, file, { upsert: true });
+    if (error) { console.error("Upload error:", error); return null; }
+    const { data } = supabase.storage.from("trade-screenshots").getPublicUrl(path);
+    return data.publicUrl;
   };
 
   const handleSubmit = async () => {
@@ -380,10 +470,12 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
     }
 
     const startISO = format(startDate, "yyyy-MM-dd");
-    const endISO = format(endDate, "yyyy-MM-dd");
+    const endISO = isCurrentlyOpen ? format(startDate, "yyyy-MM-dd") : format(endDate, "yyyy-MM-dd");
 
     setSubmitting(true);
     try {
+      const tradeStatus = isCurrentlyOpen ? "open" : (resultR ? "closed" : "open");
+
       const { data: trade, error } = await supabase.from("trades").insert({
         user_id: user.id,
         date: endISO,
@@ -395,18 +487,33 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         mood_score: moodScore,
         followed_rules: followedRules,
         intent_notes: notes.trim() || null,
-        result_r: resultR ? parseFloat(resultR) : null,
+        result_r: isCurrentlyOpen ? null : (resultR ? parseFloat(resultR) : null),
         entry_price: entryPrice ? parseFloat(entryPrice) : null,
         stop_price: stopPrice ? parseFloat(stopPrice) : null,
         target_price: targetPrice ? parseFloat(targetPrice) : null,
-        status: resultR ? "closed" : "open",
+        status: tradeStatus,
       } as any).select().single();
 
       if (error) throw error;
 
+      const tradeId = (trade as any).id;
+
+      // Upload screenshots
+      let beforeUrl: string | null = null;
+      let afterUrl: string | null = null;
+      if (beforeFile) beforeUrl = await uploadScreenshot(beforeFile, tradeId, "before");
+      if (afterFile) afterUrl = await uploadScreenshot(afterFile, tradeId, "after");
+
+      if (beforeUrl || afterUrl) {
+        const updates: Record<string, string | null> = {};
+        if (beforeUrl) updates.before_screenshot_url = beforeUrl;
+        if (afterUrl) updates.after_screenshot_url = afterUrl;
+        await supabase.from("trades").update(updates).eq("id", tradeId);
+      }
+
       if (selectedTags.length > 0 && trade) {
         const { error: tagError } = await supabase.from("trade_tags").insert(
-          selectedTags.map((tag) => ({ trade_id: (trade as any).id, tag }))
+          selectedTags.map((tag) => ({ trade_id: tradeId, tag }))
         );
         if (tagError) console.error("Tag insert error:", tagError);
       }
@@ -430,6 +537,9 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
   const MandatoryMark = ({ field }: { field: string }) =>
     isMandatory(field) ? <span className="text-accent ml-0.5">*</span> : null;
 
+  // Result display formatting
+  const resultDisplay = resultR ? (parseFloat(resultR) > 0 ? `+${resultR}` : resultR) : "";
+
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="glass-card-elevated neon-border-teal space-y-4">
       <div className="flex items-center justify-between">
@@ -437,10 +547,19 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X className="h-4 w-4" /></button>
       </div>
 
-      {/* Compact Start/End Date pickers */}
-      <div className="flex items-start gap-3">
+      {/* Compact Start/End Date pickers + Currently Open toggle */}
+      <div className="flex items-end gap-3">
         <CompactDatePicker label="Start Date" value={startDate} onChange={setStartDate} />
-        <CompactDatePicker label="End Date" value={endDate} onChange={setEndDate} />
+        <CompactDatePicker label="End Date" value={endDate} onChange={setEndDate} disabled={isCurrentlyOpen} />
+        <div className="pb-0.5">
+          <label className="stat-label flex items-center gap-1 mb-1 whitespace-nowrap">Currently Open</label>
+          <button
+            onClick={() => setIsCurrentlyOpen(!isCurrentlyOpen)}
+            className={`h-7 w-12 rounded-full border relative transition-colors ${isCurrentlyOpen ? "bg-accent/20 border-accent/40" : "bg-muted border-border"}`}
+          >
+            <div className={`absolute top-0.5 h-6 w-6 rounded-full transition-all ${isCurrentlyOpen ? "right-0.5 bg-accent" : "left-0.5 bg-muted-foreground"}`} />
+          </button>
+        </div>
       </div>
       {isDateTooOld() && (
         <div className="flex items-center gap-1.5 text-accent -mt-2">
@@ -466,7 +585,25 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         </div>
         <div>
           <label className="stat-label">Result (R)</label>
-          <input value={resultR} onChange={(e) => setResultR(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary" placeholder="+1.5" type="number" step="0.1" />
+          <div className="relative mt-1">
+            <input
+              value={resultR}
+              onChange={(e) => setResultR(e.target.value)}
+              className={cn(
+                "w-full bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors",
+                isCurrentlyOpen && "opacity-50 cursor-not-allowed"
+              )}
+              placeholder="1.5"
+              type="number"
+              step="0.1"
+              disabled={isCurrentlyOpen}
+            />
+            {resultR && !isCurrentlyOpen && (
+              <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold ${parseFloat(resultR) >= 0 ? "text-profit" : "text-loss"}`}>
+                {parseFloat(resultR) > 0 ? "+" : ""}{resultR}R
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -523,14 +660,24 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary resize-none transition-colors" rows={3} placeholder="What's the setup? What's your plan?" />
       </div>
 
-      {/* Screenshots */}
+      {/* Screenshots with actual upload */}
       <div className="grid grid-cols-2 gap-3">
-        {[{ label: "Before Screenshot", field: "before_photo" }, { label: "After Screenshot", field: "after_photo" }].map(({ label, field }) => (
-          <div key={label} className="border border-dashed border-border/50 rounded-lg h-20 flex flex-col items-center justify-center cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-all">
-            <Image className="h-4 w-4 text-muted-foreground mb-1" />
-            <span className="text-[10px] text-muted-foreground">{label}{isMandatory(field) && <span className="text-accent">*</span>}</span>
-          </div>
-        ))}
+        <ScreenshotUploader
+          label="Before Screenshot"
+          field="before_photo"
+          file={beforeFile}
+          onFileChange={(f) => handleFileChange("before", f)}
+          previewUrl={beforePreview}
+          isMandatory={isMandatory("before_photo")}
+        />
+        <ScreenshotUploader
+          label="After Screenshot"
+          field="after_photo"
+          file={afterFile}
+          onFileChange={(f) => handleFileChange("after", f)}
+          previewUrl={afterPreview}
+          isMandatory={isMandatory("after_photo")}
+        />
       </div>
 
       {/* Actions */}

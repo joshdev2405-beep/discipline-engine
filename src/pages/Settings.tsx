@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings as SettingsIcon, RotateCcw, Target, Plus, Trash2, BookOpen, ListChecks } from "lucide-react";
+import { Settings as SettingsIcon, RotateCcw, Target, Plus, Trash2, BookOpen, ListChecks, Calendar } from "lucide-react";
 import { useSettings, MANDATORY_FIELD_LABELS, type MandatoryField, type TradeRowMetric } from "@/lib/settings";
 import { useConditions, type Condition } from "@/lib/conditions";
 import { toast } from "sonner";
@@ -13,6 +13,37 @@ export default function Settings() {
     ...(Object.keys(MANDATORY_FIELD_LABELS) as MandatoryField[]).map((f) => ({ key: f, label: MANDATORY_FIELD_LABELS[f] })),
     ...conditions.map((c) => ({ key: `condition_${c.id}`, label: c.name })),
   ];
+
+  // Target mode state
+  const [targetMode, setTargetMode] = useState<"fixed" | "daily">(
+    (settings as any).targetMode || "fixed"
+  );
+  const [dailyAvg, setDailyAvg] = useState<number>((settings as any).dailyTradeAvg || 2);
+  const [excludeWeekends, setExcludeWeekends] = useState<boolean>((settings as any).excludeWeekends ?? true);
+
+  const tradingDaysInMonth = excludeWeekends ? 22 : 30; // approximate
+  const projectedMonthly = dailyAvg * tradingDaysInMonth;
+
+  const handleTargetModeChange = (mode: "fixed" | "daily") => {
+    setTargetMode(mode);
+    updateSettings({ targetMode: mode } as any);
+    if (mode === "daily") {
+      updateSettings({ monthlyTradeTarget: dailyAvg * tradingDaysInMonth, dailyTradeAvg: dailyAvg, excludeWeekends } as any);
+    }
+  };
+
+  const handleDailyAvgChange = (val: number) => {
+    setDailyAvg(val);
+    const days = excludeWeekends ? 22 : 30;
+    updateSettings({ dailyTradeAvg: val, monthlyTradeTarget: val * days } as any);
+  };
+
+  const handleWeekendToggle = () => {
+    const next = !excludeWeekends;
+    setExcludeWeekends(next);
+    const days = next ? 22 : 30;
+    updateSettings({ excludeWeekends: next, monthlyTradeTarget: dailyAvg * days } as any);
+  };
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -30,14 +61,56 @@ export default function Settings() {
         </button>
       </motion.div>
 
-      {/* Trade Targets — horizontal inline row */}
+      {/* Trade Targets */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card-elevated">
-        <div className="flex items-center gap-2 mb-4">
-          <Target className="h-4 w-4 text-accent" />
-          <span className="stat-label text-accent">Trade Targets</span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-accent" />
+            <span className="stat-label text-accent">Trade Targets</span>
+          </div>
+          {/* Mode Toggle */}
+          <div className="flex items-center gap-1">
+            {(["fixed", "daily"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => handleTargetModeChange(mode)}
+                className={`px-2.5 py-1 text-[10px] rounded-lg border transition-all ${
+                  targetMode === mode
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-muted-foreground"
+                }`}
+              >
+                {mode === "fixed" ? "Fixed Monthly" : "Daily Avg"}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex items-end gap-3">
-          <InlineField label="Monthly Trade Target" value={settings.monthlyTradeTarget} onChange={(v) => updateSettings({ monthlyTradeTarget: v })} min={1} max={200} />
+
+        <div className="flex items-end gap-3 flex-wrap">
+          {targetMode === "fixed" ? (
+            <InlineField label="Monthly Trade Target" value={settings.monthlyTradeTarget} onChange={(v) => updateSettings({ monthlyTradeTarget: v })} min={1} max={200} />
+          ) : (
+            <>
+              <InlineField label="Daily Avg Trades" value={dailyAvg} onChange={handleDailyAvgChange} min={1} max={20} />
+              <div className="flex-1 min-w-0">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground whitespace-nowrap">Projected Monthly</label>
+                <div className="mt-1 bg-muted/30 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground/70">
+                  {projectedMonthly} trades
+                </div>
+              </div>
+              <div className="pb-0.5">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground whitespace-nowrap flex items-center gap-1">
+                  <Calendar className="h-2.5 w-2.5" /> Exclude Weekends
+                </label>
+                <button
+                  onClick={handleWeekendToggle}
+                  className={`mt-1 h-7 w-12 rounded-full border relative transition-colors ${excludeWeekends ? "bg-primary/20 border-primary/40" : "bg-muted border-border"}`}
+                >
+                  <div className={`absolute top-0.5 h-6 w-6 rounded-full transition-all ${excludeWeekends ? "right-0.5 bg-primary" : "left-0.5 bg-muted-foreground"}`} />
+                </button>
+              </div>
+            </>
+          )}
           <InlineField label="Monthly Points Target" value={(settings as any).monthlyPointTarget ?? 90} onChange={(v) => updateSettings({ monthlyPointTarget: v } as any)} min={1} max={500} />
           <InlineField label="Photo Quota" value={settings.monthlyPhotoQuota} onChange={(v) => updateSettings({ monthlyPhotoQuota: v })} min={0} max={100} />
           <InlineField label="Daily Cap" value={settings.dailyCap} onChange={(v) => setDailyCap(v)} min={1} max={10} />
