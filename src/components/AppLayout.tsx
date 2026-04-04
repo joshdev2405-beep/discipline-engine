@@ -84,6 +84,7 @@ function AppSidebar() {
                       className="h-full rounded-full bg-primary transition-all duration-500"
                       style={{ width: `${rankInfo.progress}%`, boxShadow: "0 0 8px hsl(var(--emerald-glow) / 0.4)" }}
                     />
+                  </div>
                 </div>
                 {operatorMode && (
                   <div className="flex items-center gap-1.5">
