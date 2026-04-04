@@ -37,6 +37,8 @@ function AppSidebar() {
   const [rankOpen, setRankOpen] = useState(false);
   const [xpInfoOpen, setXpInfoOpen] = useState(false);
   const { profile, rankInfo } = useProfile();
+  const { user } = useAuth();
+  const { operatorMode } = useOperatorMode(user?.email);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
