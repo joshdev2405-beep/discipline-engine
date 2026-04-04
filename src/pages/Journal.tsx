@@ -113,9 +113,11 @@ function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: Trade
 }
 
 const SENTIMENT_OPTIONS = [
-  { value: "happy", icon: "😊", label: "Happy" },
+  { value: "fired_up", icon: "🚀", label: "Fired Up" },
+  { value: "diamond", icon: "💎", label: "Diamond Hands" },
   { value: "neutral", icon: "😐", label: "Neutral" },
-  { value: "stressed", icon: "😰", label: "Stressed" },
+  { value: "bearish", icon: "📉", label: "Bearish" },
+  { value: "tilted", icon: "😤", label: "Tilted" },
 ];
 
 function ConditionsSection({ values, onChange }: { values: ConditionValue[]; onChange: (vals: ConditionValue[]) => void }) {
