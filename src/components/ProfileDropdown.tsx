@@ -191,7 +191,21 @@ export default function ProfileDropdown() {
                 </div>
               )}
 
-              <div className="border-t border-border pt-3">
+              <div className="border-t border-border pt-3 space-y-1">
+                {isAdmin && (
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-amber-500/80" />
+                      <span className="text-sm text-muted-foreground">Operator Mode</span>
+                    </div>
+                    <button
+                      onClick={() => setOperatorMode(!operatorMode)}
+                      className={`h-5 w-9 rounded-full border relative transition-colors shrink-0 ${operatorMode ? "bg-amber-500/20 border-amber-500/40" : "bg-muted border-border"}`}
+                    >
+                      <div className={`absolute top-0.5 h-4 w-4 rounded-full transition-all ${operatorMode ? "right-0.5 bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)]" : "left-0.5 bg-muted-foreground"}`} />
+                    </button>
+                  </div>
+                )}
                 <button
                   onClick={() => { setOpen(false); signOut(); }}
                   className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
