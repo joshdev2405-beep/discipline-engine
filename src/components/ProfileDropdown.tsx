@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Mail, Globe, Pencil, Check, X, LogOut, Camera, Loader2 } from "lucide-react";
+import { User, Mail, Globe, Pencil, Check, X, LogOut, Camera, Loader2, Shield } from "lucide-react";
 import { useProfile, getRankInfo } from "@/hooks/use-profile";
 import { useAuth } from "@/components/AuthProvider";
+import { useOperatorMode } from "@/lib/operator-mode";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
