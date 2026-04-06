@@ -195,6 +195,40 @@ export default function Settings() {
           })}
         </div>
       </motion.div>
+
+      {/* Mock Data Injection (Admin Only) */}
+      {isAdmin(user?.email) && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card-elevated border-amber-500/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Database className="h-4 w-4 text-amber-500" />
+              <div>
+                <span className="stat-label text-amber-500">Mock Data Injection</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Insert 30 mock trades for March 11–31, 2026 (80% WR, weekdays only)</p>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                if (!user) return;
+                setInjecting(true);
+                const result = await injectMockTrades(user.id);
+                setInjecting(false);
+                if (result.error) {
+                  toast.error("Injection failed", { description: result.error });
+                } else {
+                  toast.success(`Injected ${result.inserted} mock trades`);
+                  queryClient.invalidateQueries({ queryKey: ["trades"] });
+                }
+              }}
+              disabled={injecting}
+              className="px-4 py-2 text-xs bg-amber-500/10 text-amber-500 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {injecting && <Loader2 className="h-3 w-3 animate-spin" />}
+              Inject March Data
+            </button>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }
