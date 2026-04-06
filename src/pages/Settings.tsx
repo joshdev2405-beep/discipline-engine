@@ -13,6 +13,9 @@ import { useQueryClient } from "@tanstack/react-query";
 export default function Settings() {
   const { settings, updateSettings, setDailyCap, updateTradeRow, updateMetric, addMetric, removeMetric, toggleMandatoryField, resetSettings, syncTargets } = useSettings();
   const { conditions } = useConditions();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [injecting, setInjecting] = useState(false);
 
   const allMandatoryOptions: { key: string; label: string }[] = [
     ...(Object.keys(MANDATORY_FIELD_LABELS) as MandatoryField[]).map((f) => ({ key: f, label: MANDATORY_FIELD_LABELS[f] })),
