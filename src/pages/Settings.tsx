@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings as SettingsIcon, RotateCcw, Target, Plus, Trash2, BookOpen, ListChecks, Calendar, History } from "lucide-react";
+import { Settings as SettingsIcon, RotateCcw, Target, Plus, Trash2, BookOpen, ListChecks, Calendar, History, Database, Loader2 } from "lucide-react";
 import { useSettings, MANDATORY_FIELD_LABELS, type MandatoryField, type TradeRowMetric, getTradingDaysInMonth } from "@/lib/settings";
 import { useConditions, type Condition } from "@/lib/conditions";
+import { useAuth } from "@/components/AuthProvider";
+import { isAdmin } from "@/lib/operator-mode";
+import { injectMockTrades } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Settings() {
   const { settings, updateSettings, setDailyCap, updateTradeRow, updateMetric, addMetric, removeMetric, toggleMandatoryField, resetSettings, syncTargets } = useSettings();
