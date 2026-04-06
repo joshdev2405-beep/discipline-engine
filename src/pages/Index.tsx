@@ -42,7 +42,7 @@ export default function Dashboard() {
       ) / 10
     : 0;
 
-  const streak = computeRuleStreak(closedTrades);
+  const streak = computeRuleStreak(closedTrades, settings.excludeWeekends);
 
   const photosThisMonth = closedTrades.filter((t) => {
     const d = new Date(t.date);
