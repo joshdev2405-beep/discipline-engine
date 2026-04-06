@@ -29,6 +29,12 @@ export interface AppSettings {
   monthlyPhotoQuota: number;
   tradeRows: TradeRowConfig[];
   mandatoryFields: MandatoryField[];
+  monthlyPointTarget: number;
+  targetMode: "fixed" | "daily";
+  dailyPointAvg: number;
+  excludeWeekends: boolean;
+  retrospectiveRules: boolean;
+  xpDailyCap: number; // max trades that award XP per day
 }
 
 const DEFAULT_METRICS: TradeRowMetric[] = [
@@ -46,12 +52,38 @@ function buildDefaultTradeRows(cap: number): TradeRowConfig[] {
   }));
 }
 
+/** Get trading days in the current month */
+export function getTradingDaysInMonth(excludeWeekends: boolean): number {
+  if (!excludeWeekends) return 30; // approx
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  let weekdays = 0;
+  for (let d = 1; d <= lastDay; d++) {
+    const day = new Date(year, month, d).getDay();
+    if (day !== 0 && day !== 6) weekdays++;
+  }
+  return weekdays;
+}
+
+export function isWeekend(date: Date): boolean {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+}
+
 const DEFAULT_SETTINGS: AppSettings = {
   monthlyTradeTarget: 40,
   dailyCap: 3,
   monthlyPhotoQuota: 20,
   tradeRows: buildDefaultTradeRows(3),
   mandatoryFields: ["mood", "rules", "notes"],
+  monthlyPointTarget: 90,
+  targetMode: "fixed",
+  dailyPointAvg: 3,
+  excludeWeekends: true,
+  retrospectiveRules: false,
+  xpDailyCap: 2,
 };
 
 interface SettingsStore {
@@ -64,6 +96,7 @@ interface SettingsStore {
   removeMetric: (tradeNumber: number, metricId: string) => void;
   toggleMandatoryField: (field: MandatoryField) => void;
   resetSettings: () => void;
+  syncTargets: (changed: "daily" | "monthly", value: number) => void;
 }
 
 const loadSettings = (): AppSettings => {
@@ -86,6 +119,18 @@ export const useSettings = create<SettingsStore>((set) => ({
   updateSettings: (partial) =>
     set((state) => {
       const next = { ...state.settings, ...partial };
+      persist(next);
+      return { settings: next };
+    }),
+  syncTargets: (changed, value) =>
+    set((state) => {
+      const days = getTradingDaysInMonth(state.settings.excludeWeekends);
+      let next: AppSettings;
+      if (changed === "daily") {
+        next = { ...state.settings, dailyPointAvg: value, monthlyPointTarget: Math.round(value * days) };
+      } else {
+        next = { ...state.settings, monthlyPointTarget: value, dailyPointAvg: Math.round((value / days) * 10) / 10 };
+      }
       persist(next);
       return { settings: next };
     }),
@@ -186,7 +231,6 @@ export function computeDisciplineScore(
     } else if (metric.id === "journaling") {
       if (trade.intent_notes && trade.intent_notes.trim().length > 0) points += metric.points;
     } else {
-      // custom metrics — give full points by default
       points += metric.points;
     }
   }
@@ -195,13 +239,21 @@ export function computeDisciplineScore(
   return Math.round(((points * row.decayMultiplier) / maxPoints) * 5 * 10) / 10;
 }
 
-export function computeRuleStreak(trades: Array<{ followed_rules: boolean; date: string }>): number {
+export function computeRuleStreak(
+  trades: Array<{ followed_rules: boolean; date: string }>,
+  excludeWeekends?: boolean
+): number {
   const sorted = [...trades]
     .filter((t) => t.followed_rules !== undefined)
     .sort((a, b) => b.date.localeCompare(a.date));
 
   let streak = 0;
   for (const t of sorted) {
+    // Skip weekends if configured
+    if (excludeWeekends) {
+      const d = new Date(t.date);
+      if (isWeekend(d)) continue;
+    }
     if (t.followed_rules) streak++;
     else break;
   }
