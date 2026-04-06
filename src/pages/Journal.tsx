@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,7 +33,6 @@ const MoodDot = ({ score, size = "sm" }: { score: number; size?: "sm" | "md" }) 
   return <div className={`${s} rounded-full ${colors[score] ?? "bg-muted"}`} title={MOOD_LABELS[score]} />;
 };
 
-/** Format result with +/- prefix for display only */
 function formatResultR(val: number | null): string {
   if (val == null) return "—";
   const prefix = val > 0 ? "+" : "";
@@ -351,9 +350,8 @@ function CompactDatePicker({ label, value, onChange, disabled }: { label: string
   );
 }
 
-function ScreenshotUploader({ label, field, file, onFileChange, previewUrl, isMandatory }: {
+function ScreenshotUploader({ label, file, onFileChange, previewUrl, isMandatory }: {
   label: string;
-  field: string;
   file: File | null;
   onFileChange: (f: File | null) => void;
   previewUrl: string | null;
@@ -396,31 +394,38 @@ function ScreenshotUploader({ label, field, file, onFileChange, previewUrl, isMa
   );
 }
 
-function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function TradeEntryForm({ onClose, onSuccess, editTrade, editTags }: {
+  onClose: () => void;
+  onSuccess: () => void;
+  editTrade?: Trade | null;
+  editTags?: TradeTag[];
+}) {
   const { user } = useAuth();
   const { settings } = useSettings();
   const { awardXP } = useProfile();
   const { operatorMode } = useOperatorMode(user?.email);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [moodScore, setMoodScore] = useState(3);
-  const [followedRules, setFollowedRules] = useState(true);
-  const [notes, setNotes] = useState("");
-  const [symbol, setSymbol] = useState("");
-  const [strategy, setStrategy] = useState("");
-  const [tradeNumber, setTradeNumber] = useState(1);
-  const [resultR, setResultR] = useState("");
-  const [entryPrice, setEntryPrice] = useState("");
-  const [stopPrice, setStopPrice] = useState("");
-  const [targetPrice, setTargetPrice] = useState("");
+  const isEdit = !!editTrade;
+
+  const [selectedTags, setSelectedTags] = useState<string[]>(editTags?.map((t) => t.tag) || []);
+  const [moodScore, setMoodScore] = useState(editTrade?.mood_score ?? 3);
+  const [followedRules, setFollowedRules] = useState(editTrade?.followed_rules ?? true);
+  const [notes, setNotes] = useState(editTrade?.intent_notes ?? "");
+  const [symbol, setSymbol] = useState(editTrade?.symbol ?? "");
+  const [strategy, setStrategy] = useState(editTrade?.strategy ?? "");
+  const [tradeNumber, setTradeNumber] = useState(editTrade?.trade_number ?? 1);
+  const [resultR, setResultR] = useState(editTrade?.result_r != null ? String(editTrade.result_r) : "");
+  const [entryPrice, setEntryPrice] = useState(editTrade?.entry_price != null ? String(editTrade.entry_price) : "");
+  const [stopPrice, setStopPrice] = useState(editTrade?.stop_price != null ? String(editTrade.stop_price) : "");
+  const [targetPrice, setTargetPrice] = useState(editTrade?.target_price != null ? String(editTrade.target_price) : "");
   const [submitting, setSubmitting] = useState(false);
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
-  const [isCurrentlyOpen, setIsCurrentlyOpen] = useState(false);
+  const [startDate, setStartDate] = useState(editTrade ? new Date(editTrade.start_date) : new Date());
+  const [endDate, setEndDate] = useState(editTrade ? new Date(editTrade.end_date) : new Date());
+  const [isCurrentlyOpen, setIsCurrentlyOpen] = useState(editTrade?.status === "open");
   const [conditionValues, setConditionValues] = useState<ConditionValue[]>([]);
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
-  const [beforePreview, setBeforePreview] = useState<string | null>(null);
-  const [afterPreview, setAfterPreview] = useState<string | null>(null);
+  const [beforePreview, setBeforePreview] = useState<string | null>(editTrade?.before_screenshot_url ?? null);
+  const [afterPreview, setAfterPreview] = useState<string | null>(editTrade?.after_screenshot_url ?? null);
 
   const handleFileChange = (type: "before" | "after", file: File | null) => {
     if (type === "before") {
@@ -457,6 +462,20 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
     return data.publicUrl;
   };
 
+  /** Check XP cap: max 2 trades per day get XP */
+  const checkXPCap = async (): Promise<boolean> => {
+    if (!user) return false;
+    const today = new Date().toISOString().slice(0, 10);
+    const { count } = await supabase
+      .from("xp_events" as any)
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .in("event_type", ["journal_entry", "trade_closed"])
+      .gte("created_at", `${today}T00:00:00`)
+      .lte("created_at", `${today}T23:59:59`);
+    return (count ?? 0) < (settings.xpDailyCap ?? 2);
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
 
@@ -476,7 +495,7 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
     try {
       const tradeStatus = isCurrentlyOpen ? "open" : (resultR ? "closed" : "open");
 
-      const { data: trade, error } = await supabase.from("trades").insert({
+      const tradeData = {
         user_id: user.id,
         date: endISO,
         start_date: startISO,
@@ -492,18 +511,46 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         stop_price: stopPrice ? parseFloat(stopPrice) : null,
         target_price: targetPrice ? parseFloat(targetPrice) : null,
         status: tradeStatus,
-      } as any).select().single();
+      };
 
-      if (error) throw error;
+      let tradeId: string;
 
-      const tradeId = (trade as any).id;
+      if (isEdit && editTrade) {
+        // UPDATE existing trade
+        const { error } = await supabase.from("trades").update(tradeData as any).eq("id", editTrade.id);
+        if (error) throw error;
+        tradeId = editTrade.id;
+
+        // Sync tags: delete old, insert new
+        await supabase.from("trade_tags").delete().eq("trade_id", tradeId);
+        if (selectedTags.length > 0) {
+          await supabase.from("trade_tags").insert(selectedTags.map((tag) => ({ trade_id: tradeId, tag })));
+        }
+      } else {
+        // INSERT new trade
+        const { data: trade, error } = await supabase.from("trades").insert(tradeData as any).select().single();
+        if (error) throw error;
+        tradeId = (trade as any).id;
+
+        if (selectedTags.length > 0) {
+          await supabase.from("trade_tags").insert(selectedTags.map((tag) => ({ trade_id: tradeId, tag })));
+        }
+
+        // Award XP (capped at 2/day)
+        if (!isDateTooOld()) {
+          const canAwardXP = await checkXPCap();
+          if (canAwardXP) {
+            const baseXP = resultR ? 50 + 25 : 50;
+            awardXP(resultR ? "trade_closed" : "journal_entry", baseXP);
+          }
+        }
+      }
 
       // Upload screenshots
       let beforeUrl: string | null = null;
       let afterUrl: string | null = null;
       if (beforeFile) beforeUrl = await uploadScreenshot(beforeFile, tradeId, "before");
       if (afterFile) afterUrl = await uploadScreenshot(afterFile, tradeId, "after");
-
       if (beforeUrl || afterUrl) {
         const updates: Record<string, string | null> = {};
         if (beforeUrl) updates.before_screenshot_url = beforeUrl;
@@ -511,24 +558,12 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         await supabase.from("trades").update(updates).eq("id", tradeId);
       }
 
-      if (selectedTags.length > 0 && trade) {
-        const { error: tagError } = await supabase.from("trade_tags").insert(
-          selectedTags.map((tag) => ({ trade_id: tradeId, tag }))
-        );
-        if (tagError) console.error("Tag insert error:", tagError);
-      }
-
-      // Award XP (no points if end date > 3 days old)
-      if (!isDateTooOld()) {
-        const baseXP = resultR ? 50 + 25 : 50;
-        awardXP(resultR ? "trade_closed" : "journal_entry", baseXP);
-      }
-
-      toast.success("Trade logged!", { description: isDateTooOld() ? "No XP awarded — trade end date is older than 3 days." : "Discipline score updated." });
+      const xpMsg = isEdit ? "Trade updated." : (isDateTooOld() ? "No XP — end date > 3 days." : "Discipline score updated.");
+      toast.success(isEdit ? "Trade updated!" : "Trade logged!", { description: xpMsg });
       onSuccess();
       onClose();
     } catch (error: any) {
-      toast.error("Failed to log trade", { description: error.message });
+      toast.error("Failed to save trade", { description: error.message });
     } finally {
       setSubmitting(false);
     }
@@ -537,13 +572,10 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
   const MandatoryMark = ({ field }: { field: string }) =>
     isMandatory(field) ? <span className="text-accent ml-0.5">*</span> : null;
 
-  // Result display formatting
-  const resultDisplay = resultR ? (parseFloat(resultR) > 0 ? `+${resultR}` : resultR) : "";
-
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="glass-card-elevated neon-border-teal space-y-4">
       <div className="flex items-center justify-between">
-        <span className="stat-label text-primary">New Trade Entry</span>
+        <span className="stat-label text-primary">{isEdit ? "Edit Trade" : "New Trade Entry"}</span>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X className="h-4 w-4" /></button>
       </div>
 
@@ -590,7 +622,7 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
               value={resultR}
               onChange={(e) => setResultR(e.target.value)}
               className={cn(
-                "w-full bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors",
+                "w-full bg-muted/50 border border-border rounded-lg px-3 py-2 pr-14 text-sm text-foreground focus:outline-none focus:border-primary transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
                 isCurrentlyOpen && "opacity-50 cursor-not-allowed"
               )}
               placeholder="1.5"
@@ -599,7 +631,7 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
               disabled={isCurrentlyOpen}
             />
             {resultR && !isCurrentlyOpen && (
-              <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold ${parseFloat(resultR) >= 0 ? "text-profit" : "text-loss"}`}>
+              <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold pointer-events-none ${parseFloat(resultR) >= 0 ? "text-profit" : "text-loss"}`}>
                 {parseFloat(resultR) > 0 ? "+" : ""}{resultR}R
               </span>
             )}
@@ -610,15 +642,15 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
       <div className="grid grid-cols-3 gap-3">
         <div>
           <label className="stat-label">Entry Price</label>
-          <input value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary" placeholder="0.00" type="number" step="0.01" />
+          <input value={entryPrice} onChange={(e) => setEntryPrice(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="0.00" type="number" step="0.01" />
         </div>
         <div>
           <label className="stat-label">Stop Price</label>
-          <input value={stopPrice} onChange={(e) => setStopPrice(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary" placeholder="0.00" type="number" step="0.01" />
+          <input value={stopPrice} onChange={(e) => setStopPrice(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="0.00" type="number" step="0.01" />
         </div>
         <div>
           <label className="stat-label">Target Price</label>
-          <input value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary" placeholder="0.00" type="number" step="0.01" />
+          <input value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="0.00" type="number" step="0.01" />
         </div>
       </div>
 
@@ -660,11 +692,10 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary resize-none transition-colors" rows={3} placeholder="What's the setup? What's your plan?" />
       </div>
 
-      {/* Screenshots with actual upload */}
+      {/* Screenshots */}
       <div className="grid grid-cols-2 gap-3">
         <ScreenshotUploader
           label="Before Screenshot"
-          field="before_photo"
           file={beforeFile}
           onFileChange={(f) => handleFileChange("before", f)}
           previewUrl={beforePreview}
@@ -672,7 +703,6 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         />
         <ScreenshotUploader
           label="After Screenshot"
-          field="after_photo"
           file={afterFile}
           onFileChange={(f) => handleFileChange("after", f)}
           previewUrl={afterPreview}
@@ -685,7 +715,7 @@ function TradeEntryForm({ onClose, onSuccess }: { onClose: () => void; onSuccess
         <button onClick={onClose} className="px-4 py-2 text-xs text-muted-foreground border border-border rounded-lg hover:bg-secondary/50 transition-colors">Cancel</button>
         <button onClick={handleSubmit} disabled={submitting} className="px-5 py-2 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center gap-2">
           {submitting && <Loader2 className="h-3 w-3 animate-spin" />}
-          Log Trade
+          {isEdit ? "Update Trade" : "Log Trade"}
         </button>
       </div>
     </motion.div>
@@ -697,6 +727,7 @@ export default function Journal() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
+  const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
 
   const { data: trades = [], isLoading } = useQuery({
     queryKey: ["trades", user?.id],
@@ -744,6 +775,16 @@ export default function Journal() {
     queryClient.invalidateQueries({ queryKey: ["trade_tags"] });
   };
 
+  const handleEdit = (trade: Trade) => {
+    setEditingTrade(trade);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingTrade(null);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -751,14 +792,21 @@ export default function Journal() {
           <BookOpen className="h-6 w-6 text-primary" />
           <h1 className="text-xl font-semibold tracking-tight">Trade Journal</h1>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 px-4 py-2 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">
+        <button onClick={() => { setEditingTrade(null); setShowForm(!showForm); }} className="flex items-center gap-1.5 px-4 py-2 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">
           <Plus className="h-3.5 w-3.5" />
           New Entry
         </button>
       </div>
 
       <AnimatePresence>
-        {showForm && <TradeEntryForm onClose={() => setShowForm(false)} onSuccess={handleRefresh} />}
+        {showForm && (
+          <TradeEntryForm
+            onClose={handleCloseForm}
+            onSuccess={handleRefresh}
+            editTrade={editingTrade}
+            editTags={editingTrade ? allTags.filter((t) => t.trade_id === editingTrade.id) : []}
+          />
+        )}
       </AnimatePresence>
 
       <div className="flex gap-1">
@@ -781,7 +829,7 @@ export default function Journal() {
               key={trade.id}
               trade={trade}
               tags={allTags.filter((t) => t.trade_id === trade.id)}
-              onEdit={() => toast.info("Edit mode", { description: "Coming soon." })}
+              onEdit={() => handleEdit(trade)}
               onDelete={() => deleteMutation.mutate(trade.id)}
             />
           ))}

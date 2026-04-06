@@ -1,48 +1,45 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings as SettingsIcon, RotateCcw, Target, Plus, Trash2, BookOpen, ListChecks, Calendar } from "lucide-react";
-import { useSettings, MANDATORY_FIELD_LABELS, type MandatoryField, type TradeRowMetric } from "@/lib/settings";
+import { Settings as SettingsIcon, RotateCcw, Target, Plus, Trash2, BookOpen, ListChecks, Calendar, History, Database, Loader2 } from "lucide-react";
+import { useSettings, MANDATORY_FIELD_LABELS, type MandatoryField, type TradeRowMetric, getTradingDaysInMonth } from "@/lib/settings";
 import { useConditions, type Condition } from "@/lib/conditions";
+import { useAuth } from "@/components/AuthProvider";
+import { isAdmin } from "@/lib/operator-mode";
+import { injectMockTrades } from "@/lib/mock-data";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Settings() {
-  const { settings, updateSettings, setDailyCap, updateTradeRow, updateMetric, addMetric, removeMetric, toggleMandatoryField, resetSettings } = useSettings();
+  const { settings, updateSettings, setDailyCap, updateTradeRow, updateMetric, addMetric, removeMetric, toggleMandatoryField, resetSettings, syncTargets } = useSettings();
   const { conditions } = useConditions();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [injecting, setInjecting] = useState(false);
 
   const allMandatoryOptions: { key: string; label: string }[] = [
     ...(Object.keys(MANDATORY_FIELD_LABELS) as MandatoryField[]).map((f) => ({ key: f, label: MANDATORY_FIELD_LABELS[f] })),
     ...conditions.map((c) => ({ key: `condition_${c.id}`, label: c.name })),
   ];
 
-  // Target mode state
-  const [targetMode, setTargetMode] = useState<"fixed" | "daily">(
-    (settings as any).targetMode || "fixed"
-  );
-  const [dailyAvg, setDailyAvg] = useState<number>((settings as any).dailyTradeAvg || 2);
-  const [excludeWeekends, setExcludeWeekends] = useState<boolean>((settings as any).excludeWeekends ?? true);
+  const tradingDays = getTradingDaysInMonth(settings.excludeWeekends);
+  const projectedMonthly = Math.round(settings.dailyPointAvg * tradingDays);
 
-  const tradingDaysInMonth = excludeWeekends ? 22 : 30; // approximate
-  const projectedMonthly = dailyAvg * tradingDaysInMonth;
-
-  const handleTargetModeChange = (mode: "fixed" | "daily") => {
-    setTargetMode(mode);
-    updateSettings({ targetMode: mode } as any);
-    if (mode === "daily") {
-      updateSettings({ monthlyTradeTarget: dailyAvg * tradingDaysInMonth, dailyTradeAvg: dailyAvg, excludeWeekends } as any);
+  const handleWeekendToggle = (checked: boolean) => {
+    updateSettings({ excludeWeekends: checked });
+    // Re-sync targets based on new trading days
+    const newDays = getTradingDaysInMonth(checked);
+    if (settings.targetMode === "daily") {
+      updateSettings({ monthlyPointTarget: Math.round(settings.dailyPointAvg * newDays) });
+    } else {
+      updateSettings({ dailyPointAvg: Math.round((settings.monthlyPointTarget / newDays) * 10) / 10 });
     }
+    toast.success("Weekend setting updated", { description: `${newDays} trading days this month` });
   };
 
-  const handleDailyAvgChange = (val: number) => {
-    setDailyAvg(val);
-    const days = excludeWeekends ? 22 : 30;
-    updateSettings({ dailyTradeAvg: val, monthlyTradeTarget: val * days } as any);
-  };
-
-  const handleWeekendToggle = () => {
-    const next = !excludeWeekends;
-    setExcludeWeekends(next);
-    const days = next ? 22 : 30;
-    updateSettings({ excludeWeekends: next, monthlyTradeTarget: dailyAvg * days } as any);
+  const handleRetrospectiveToggle = (checked: boolean) => {
+    updateSettings({ retrospectiveRules: checked });
+    toast.success(checked ? "Historical data will be recalculated on point changes" : "Changes apply to future trades only");
   };
 
   return (
@@ -66,54 +63,82 @@ export default function Settings() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Target className="h-4 w-4 text-accent" />
-            <span className="stat-label text-accent">Trade Targets</span>
+            <span className="stat-label text-accent">Targets</span>
           </div>
-          {/* Mode Toggle */}
-          <div className="flex items-center gap-1">
-            {(["fixed", "daily"] as const).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => handleTargetModeChange(mode)}
-                className={`px-2.5 py-1 text-[10px] rounded-lg border transition-all ${
-                  targetMode === mode
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:border-muted-foreground"
-                }`}
-              >
-                {mode === "fixed" ? "Fixed Monthly" : "Daily Avg"}
-              </button>
-            ))}
+          <div className="flex items-center gap-3">
+            {/* Exclude Weekends toggle - compact, top-right */}
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap">Excl. Weekends</span>
+              <Switch checked={settings.excludeWeekends} onCheckedChange={handleWeekendToggle} className="scale-75" />
+            </div>
+            {/* Mode Toggle */}
+            <div className="flex items-center gap-1">
+              {(["fixed", "daily"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => updateSettings({ targetMode: mode })}
+                  className={`px-2.5 py-1 text-[10px] rounded-lg border transition-all ${
+                    settings.targetMode === mode
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-muted-foreground"
+                  }`}
+                >
+                  {mode === "fixed" ? "Fixed Monthly" : "Daily Avg"}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="flex items-end gap-3 flex-wrap">
-          {targetMode === "fixed" ? (
-            <InlineField label="Monthly Trade Target" value={settings.monthlyTradeTarget} onChange={(v) => updateSettings({ monthlyTradeTarget: v })} min={1} max={200} />
+          {settings.targetMode === "fixed" ? (
+            <>
+              <InlineField
+                label="Monthly Points Target"
+                value={settings.monthlyPointTarget}
+                onChange={(v) => syncTargets("monthly", v)}
+                min={1}
+                max={500}
+              />
+              <div className="flex-1 min-w-0">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">Daily Avg Points</label>
+                <p className="mt-1 text-xs text-muted-foreground">{(settings.monthlyPointTarget / tradingDays).toFixed(1)} pts/day</p>
+              </div>
+            </>
           ) : (
             <>
-              <InlineField label="Daily Avg Trades" value={dailyAvg} onChange={handleDailyAvgChange} min={1} max={20} />
+              <InlineField
+                label="Daily Avg Points"
+                value={settings.dailyPointAvg}
+                onChange={(v) => syncTargets("daily", v)}
+                min={0.5}
+                max={50}
+                step={0.5}
+              />
               <div className="flex-1 min-w-0">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground whitespace-nowrap">Projected Monthly</label>
-                <div className="mt-1 bg-muted/30 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground/70">
-                  {projectedMonthly} trades
-                </div>
-              </div>
-              <div className="pb-0.5">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground whitespace-nowrap flex items-center gap-1">
-                  <Calendar className="h-2.5 w-2.5" /> Exclude Weekends
-                </label>
-                <button
-                  onClick={handleWeekendToggle}
-                  className={`mt-1 h-7 w-12 rounded-full border relative transition-colors ${excludeWeekends ? "bg-primary/20 border-primary/40" : "bg-muted border-border"}`}
-                >
-                  <div className={`absolute top-0.5 h-6 w-6 rounded-full transition-all ${excludeWeekends ? "right-0.5 bg-primary" : "left-0.5 bg-muted-foreground"}`} />
-                </button>
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">Projected Monthly</label>
+                <p className="mt-1 text-xs text-muted-foreground">{projectedMonthly} pts ({tradingDays} days)</p>
               </div>
             </>
           )}
-          <InlineField label="Monthly Points Target" value={(settings as any).monthlyPointTarget ?? 90} onChange={(v) => updateSettings({ monthlyPointTarget: v } as any)} min={1} max={500} />
+          <InlineField label="Monthly Trade Target" value={settings.monthlyTradeTarget} onChange={(v) => updateSettings({ monthlyTradeTarget: v })} min={1} max={200} />
           <InlineField label="Photo Quota" value={settings.monthlyPhotoQuota} onChange={(v) => updateSettings({ monthlyPhotoQuota: v })} min={0} max={100} />
           <InlineField label="Daily Cap" value={settings.dailyCap} onChange={(v) => setDailyCap(v)} min={1} max={10} />
+        </div>
+      </motion.div>
+
+      {/* Retrospective Rules Toggle */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="glass-card-elevated">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-accent" />
+            <div>
+              <span className="stat-label text-accent">Retrospective Rules</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">When ON, point allocation changes recalculate all historical Discipline Scores</p>
+            </div>
+          </div>
+          <Switch checked={settings.retrospectiveRules} onCheckedChange={handleRetrospectiveToggle} />
         </div>
       </motion.div>
 
@@ -170,12 +195,46 @@ export default function Settings() {
           })}
         </div>
       </motion.div>
+
+      {/* Mock Data Injection (Admin Only) */}
+      {isAdmin(user?.email) && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card-elevated border-amber-500/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Database className="h-4 w-4 text-amber-500" />
+              <div>
+                <span className="stat-label text-amber-500">Mock Data Injection</span>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Insert 30 mock trades for March 11–31, 2026 (80% WR, weekdays only)</p>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                if (!user) return;
+                setInjecting(true);
+                const result = await injectMockTrades(user.id);
+                setInjecting(false);
+                if (result.error) {
+                  toast.error("Injection failed", { description: result.error });
+                } else {
+                  toast.success(`Injected ${result.inserted} mock trades`);
+                  queryClient.invalidateQueries({ queryKey: ["trades"] });
+                }
+              }}
+              disabled={injecting}
+              className="px-4 py-2 text-xs bg-amber-500/10 text-amber-500 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {injecting && <Loader2 className="h-3 w-3 animate-spin" />}
+              Inject March Data
+            </button>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }
 
-function InlineField({ label, value, onChange, min = 0, max = 100 }: {
-  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number;
+function InlineField({ label, value, onChange, min = 0, max = 100, step = 1 }: {
+  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; step?: number;
 }) {
   return (
     <div className="flex-1 min-w-0">
@@ -184,9 +243,10 @@ function InlineField({ label, value, onChange, min = 0, max = 100 }: {
         type="number"
         min={min}
         max={max}
+        step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+        className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
       />
     </div>
   );
@@ -238,7 +298,7 @@ function TradeRowEditor({ row, conditions, onUpdateDecay, onUpdateMetric, onAddM
             type="number" min={0} max={2} step={0.1}
             value={row.decayMultiplier}
             onChange={(e) => onUpdateDecay(Number(e.target.value))}
-            className="w-16 bg-muted border border-border rounded-lg px-2 py-1 text-xs text-foreground text-center focus:outline-none focus:border-primary"
+            className="w-16 bg-muted border border-border rounded-lg px-2 py-1 text-xs text-foreground text-center focus:outline-none focus:border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
         </div>
       </div>
@@ -255,7 +315,7 @@ function TradeRowEditor({ row, conditions, onUpdateDecay, onUpdateMetric, onAddM
               type="number" min={0} max={10}
               value={metric.points}
               onChange={(e) => onUpdateMetric(metric.id, { points: Number(e.target.value) })}
-              className="w-14 bg-muted/30 border border-border/50 rounded px-2 py-1 text-xs text-foreground text-center focus:outline-none focus:border-primary"
+              className="w-14 bg-muted/30 border border-border/50 rounded px-2 py-1 text-xs text-foreground text-center focus:outline-none focus:border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <span className="text-[10px] text-muted-foreground">pts</span>
             <button onClick={() => onRemoveMetric(metric.id)} className="p-1 text-muted-foreground hover:text-destructive transition-colors">
