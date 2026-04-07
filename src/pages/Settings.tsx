@@ -5,17 +5,28 @@ import { useSettings, MANDATORY_FIELD_LABELS, type MandatoryField, type TradeRow
 import { useConditions, type Condition } from "@/lib/conditions";
 import { useAuth } from "@/components/AuthProvider";
 import { isAdmin } from "@/lib/operator-mode";
+import { useOperatorMode } from "@/lib/operator-mode";
 import { injectMockTrades } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { useQueryClient } from "@tanstack/react-query";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 export default function Settings() {
   const { settings, updateSettings, setDailyCap, updateTradeRow, updateMetric, addMetric, removeMetric, toggleMandatoryField, resetSettings, syncTargets } = useSettings();
   const { conditions } = useConditions();
   const { user } = useAuth();
+  const { operatorMode } = useOperatorMode(user?.email);
   const queryClient = useQueryClient();
   const [injecting, setInjecting] = useState(false);
+
+  // Mock data inputs
+  const [mockStartDate, setMockStartDate] = useState<Date | undefined>(undefined);
+  const [mockEndDate, setMockEndDate] = useState<Date | undefined>(undefined);
+  const [mockTradeCount, setMockTradeCount] = useState(30);
+  const [mockWinRate, setMockWinRate] = useState(80);
 
   const allMandatoryOptions: { key: string; label: string }[] = [
     ...(Object.keys(MANDATORY_FIELD_LABELS) as MandatoryField[]).map((f) => ({ key: f, label: MANDATORY_FIELD_LABELS[f] })),
@@ -23,17 +34,12 @@ export default function Settings() {
   ];
 
   const tradingDays = getTradingDaysInMonth(settings.excludeWeekends);
-  const projectedMonthly = Math.round(settings.dailyPointAvg * tradingDays);
 
   const handleWeekendToggle = (checked: boolean) => {
     updateSettings({ excludeWeekends: checked });
-    // Re-sync targets based on new trading days
     const newDays = getTradingDaysInMonth(checked);
-    if (settings.targetMode === "daily") {
-      updateSettings({ monthlyPointTarget: Math.round(settings.dailyPointAvg * newDays) });
-    } else {
-      updateSettings({ dailyPointAvg: Math.round((settings.monthlyPointTarget / newDays) * 10) / 10 });
-    }
+    // Re-sync: keep monthly target, recalculate daily
+    updateSettings({ dailyPointAvg: Math.round((settings.monthlyPointTarget / newDays) * 10) / 10 });
     toast.success("Weekend setting updated", { description: `${newDays} trading days this month` });
   };
 
@@ -58,70 +64,39 @@ export default function Settings() {
         </button>
       </motion.div>
 
-      {/* Trade Targets */}
+      {/* Trade Targets — Two-Way Linked */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card-elevated">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Target className="h-4 w-4 text-accent" />
             <span className="stat-label text-accent">Targets</span>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Exclude Weekends toggle - compact, top-right */}
-            <div className="flex items-center gap-1.5">
-              <Calendar className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[10px] text-muted-foreground whitespace-nowrap">Excl. Weekends</span>
-              <Switch checked={settings.excludeWeekends} onCheckedChange={handleWeekendToggle} className="scale-75" />
-            </div>
-            {/* Mode Toggle */}
-            <div className="flex items-center gap-1">
-              {(["fixed", "daily"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => updateSettings({ targetMode: mode })}
-                  className={`px-2.5 py-1 text-[10px] rounded-lg border transition-all ${
-                    settings.targetMode === mode
-                      ? "border-primary/40 bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:border-muted-foreground"
-                  }`}
-                >
-                  {mode === "fixed" ? "Fixed Monthly" : "Daily Avg"}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center gap-1.5">
+            <Calendar className="h-3 w-3 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap">Excl. Weekends</span>
+            <Switch checked={settings.excludeWeekends} onCheckedChange={handleWeekendToggle} className="scale-75" />
           </div>
         </div>
 
         <div className="flex items-end gap-3 flex-wrap">
-          {settings.targetMode === "fixed" ? (
-            <>
-              <InlineField
-                label="Monthly Points Target"
-                value={settings.monthlyPointTarget}
-                onChange={(v) => syncTargets("monthly", v)}
-                min={1}
-                max={500}
-              />
-              <div className="flex-1 min-w-0">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">Daily Avg Points</label>
-                <p className="mt-1 text-xs text-muted-foreground">{(settings.monthlyPointTarget / tradingDays).toFixed(1)} pts/day</p>
-              </div>
-            </>
-          ) : (
-            <>
-              <InlineField
-                label="Daily Avg Points"
-                value={settings.dailyPointAvg}
-                onChange={(v) => syncTargets("daily", v)}
-                min={0.5}
-                max={50}
-                step={0.5}
-              />
-              <div className="flex-1 min-w-0">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground/60 whitespace-nowrap">Projected Monthly</label>
-                <p className="mt-1 text-xs text-muted-foreground">{projectedMonthly} pts ({tradingDays} days)</p>
-              </div>
-            </>
-          )}
+          <InlineField
+            label="Daily Avg Points"
+            value={settings.dailyPointAvg}
+            onChange={(v) => syncTargets("daily", v)}
+            min={0.5}
+            max={50}
+            step={0.5}
+          />
+          <InlineField
+            label="Monthly Points Target"
+            value={settings.monthlyPointTarget}
+            onChange={(v) => syncTargets("monthly", v)}
+            min={1}
+            max={500}
+          />
+          <div className="flex-shrink-0 pb-1">
+            <span className="text-[10px] text-muted-foreground">{tradingDays} trading days</span>
+          </div>
           <InlineField label="Monthly Trade Target" value={settings.monthlyTradeTarget} onChange={(v) => updateSettings({ monthlyTradeTarget: v })} min={1} max={200} />
           <InlineField label="Photo Quota" value={settings.monthlyPhotoQuota} onChange={(v) => updateSettings({ monthlyPhotoQuota: v })} min={0} max={100} />
           <InlineField label="Daily Cap" value={settings.dailyCap} onChange={(v) => setDailyCap(v)} min={1} max={10} />
@@ -196,37 +171,75 @@ export default function Settings() {
         </div>
       </motion.div>
 
-      {/* Mock Data Injection (Admin Only) */}
-      {isAdmin(user?.email) && (
+      {/* Mock Data Injection (Operator Mode Only) */}
+      {operatorMode && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card-elevated border-amber-500/20">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Database className="h-4 w-4 text-amber-500" />
-              <div>
-                <span className="stat-label text-amber-500">Mock Data Injection</span>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Insert 30 mock trades for March 11–31, 2026 (80% WR, weekdays only)</p>
-              </div>
-            </div>
-            <button
-              onClick={async () => {
-                if (!user) return;
-                setInjecting(true);
-                const result = await injectMockTrades(user.id);
-                setInjecting(false);
-                if (result.error) {
-                  toast.error("Injection failed", { description: result.error });
-                } else {
-                  toast.success(`Injected ${result.inserted} mock trades`);
-                  queryClient.invalidateQueries({ queryKey: ["trades"] });
-                }
-              }}
-              disabled={injecting}
-              className="px-4 py-2 text-xs bg-amber-500/10 text-amber-500 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              {injecting && <Loader2 className="h-3 w-3 animate-spin" />}
-              Inject March Data
-            </button>
+          <div className="flex items-center gap-2 mb-4">
+            <Database className="h-4 w-4 text-amber-500" />
+            <span className="stat-label text-amber-500">Mock Data Injection</span>
           </div>
+          <p className="text-[10px] text-muted-foreground mb-4">Generate mock trades with completed journal entries and discipline points.</p>
+
+          <div className="flex items-end gap-3 flex-wrap mb-4">
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Start Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-xs text-foreground text-left">
+                    {mockStartDate ? format(mockStartDate, "yyyy-MM-dd") : "Pick date"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent mode="single" selected={mockStartDate} onSelect={setMockStartDate} />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="flex-1 min-w-[120px]">
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground/60">End Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-xs text-foreground text-left">
+                    {mockEndDate ? format(mockEndDate, "yyyy-MM-dd") : "Pick date"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent mode="single" selected={mockEndDate} onSelect={setMockEndDate} />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <InlineField label="Trade Count" value={mockTradeCount} onChange={setMockTradeCount} min={1} max={200} />
+            <InlineField label="Win Rate %" value={mockWinRate} onChange={setMockWinRate} min={0} max={100} />
+          </div>
+
+          <button
+            onClick={async () => {
+              if (!user) return;
+              if (!mockStartDate || !mockEndDate) {
+                toast.error("Select both start and end dates");
+                return;
+              }
+              setInjecting(true);
+              const result = await injectMockTrades(user.id, {
+                startDate: mockStartDate,
+                endDate: mockEndDate,
+                tradeCount: mockTradeCount,
+                winRate: mockWinRate,
+                excludeWeekends: settings.excludeWeekends,
+              });
+              setInjecting(false);
+              if (result.error) {
+                toast.error("Injection failed", { description: result.error });
+              } else {
+                toast.success(`Injected ${result.inserted} mock trades`);
+                queryClient.invalidateQueries({ queryKey: ["trades"] });
+              }
+            }}
+            disabled={injecting}
+            className="px-4 py-2 text-xs bg-amber-500/10 text-amber-500 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {injecting && <Loader2 className="h-3 w-3 animate-spin" />}
+            Generate & Inject
+          </button>
         </motion.div>
       )}
     </div>
@@ -363,7 +376,7 @@ function TradeRowEditor({ row, conditions, onUpdateDecay, onUpdateMetric, onAddM
                   <button
                     key={field.id}
                     onClick={() => handleAddFromWheel(field)}
-                    className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+                    className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted/50 transition-colors"
                   >
                     {field.name}
                   </button>

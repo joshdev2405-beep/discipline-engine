@@ -210,6 +210,16 @@ export const useSettings = create<SettingsStore>((set) => ({
     }),
 }));
 
+export function computeMaxPossiblePoints(settings: AppSettings): number {
+  let maxPerDay = 0;
+  for (const row of settings.tradeRows) {
+    const rowMax = row.metrics.reduce((s, m) => s + m.points, 0);
+    maxPerDay += rowMax * row.decayMultiplier;
+  }
+  // Scale to 0-5 like computeDisciplineScore does per trade, but sum across all rows
+  return maxPerDay > 0 ? Math.round(maxPerDay * 10) / 10 : 0;
+}
+
 export function computeDisciplineScore(
   trade: { followed_rules: boolean; intent_notes: string | null; before_screenshot_url: string | null; after_screenshot_url: string | null; trade_number: number },
   settings: AppSettings
