@@ -78,7 +78,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   tradeRows: buildDefaultTradeRows(3),
   mandatoryFields: ["mood", "rules", "notes"],
   monthlyPointTarget: 90,
-  targetMode: "fixed",
   dailyPointAvg: 3,
   excludeWeekends: true,
   retrospectiveRules: false,
