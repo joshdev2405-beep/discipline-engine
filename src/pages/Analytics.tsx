@@ -254,7 +254,7 @@ export default function Analytics() {
       </motion.div>
 
       {/* Progress to Monthly Points Target */}
-      <PointsTargetBar closedTrades={closedTrades} />
+      <PointsTargetBar allTrades={trades} />
 
       {/* Customizable Widget Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
