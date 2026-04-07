@@ -254,7 +254,7 @@ export default function Analytics() {
       </motion.div>
 
       {/* Progress to Monthly Points Target */}
-      <PointsTargetBar closedTrades={closedTrades} />
+      <PointsTargetBar allTrades={trades} />
 
       {/* Customizable Widget Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -311,10 +311,17 @@ export default function Analytics() {
   );
 }
 
-function PointsTargetBar({ closedTrades }: { closedTrades: Trade[] }) {
+function PointsTargetBar({ allTrades }: { allTrades: Trade[] }) {
   const { settings } = useSettings();
-  const monthlyPointTarget = (settings as any).monthlyPointTarget ?? 90;
-  const totalPoints = closedTrades.reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0);
+  const monthlyPointTarget = settings.monthlyPointTarget ?? 90;
+  // Always use current calendar month regardless of date filter
+  const now = new Date();
+  const currentMonthTrades = allTrades.filter((t) => {
+    if (t.status !== "closed") return false;
+    const d = new Date(t.end_date || t.date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const totalPoints = currentMonthTrades.reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0);
   const progress = monthlyPointTarget > 0 ? Math.min(Math.round((totalPoints / monthlyPointTarget) * 100), 100) : 0;
 
   return (

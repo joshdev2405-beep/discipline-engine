@@ -4,7 +4,7 @@ import GaugeChart from "@/components/GaugeChart";
 import PerformanceHeatmap from "@/components/PerformanceHeatmap";
 import { useTrades, Trade } from "@/hooks/use-trades";
 import { MOOD_LABELS } from "@/lib/types";
-import { useSettings, computeDisciplineScore, computeRuleStreak } from "@/lib/settings";
+import { useSettings, computeDisciplineScore, computeRuleStreak, computeMaxPossiblePoints } from "@/lib/settings";
 import { AlertTriangle, TrendingUp, Brain, Shield, Flame, Camera, Target, Sparkles, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,10 +36,10 @@ export default function Dashboard() {
   const todayTrades = trades.filter(
     (t) => (t.end_date || t.date) === new Date().toISOString().slice(0, 10) && t.status === "closed"
   );
-  const dailyScore = todayTrades.length > 0
-    ? Math.round(
-        (todayTrades.reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0) / todayTrades.length) * 10
-      ) / 10
+  const todayPoints = todayTrades.reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0);
+  const maxPossiblePoints = computeMaxPossiblePoints(settings);
+  const dailyScorePercent = maxPossiblePoints > 0
+    ? Math.min(Math.round((todayPoints / maxPossiblePoints) * 100), 100)
     : 0;
 
   const streak = computeRuleStreak(closedTrades, settings.excludeWeekends);
@@ -137,11 +137,12 @@ export default function Dashboard() {
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card-elevated glow-emerald flex flex-col items-center justify-center py-8">
           <span className="stat-label mb-3">Daily Discipline Score</span>
           <div className="relative">
-            <span className="text-6xl font-black text-primary">{dailyScore}</span>
-            <span className="text-lg text-primary/60 ml-1">/5</span>
+            <span className="text-6xl font-black text-primary">{dailyScorePercent}</span>
+            <span className="text-lg text-primary/60 ml-1">%</span>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-2">
-            {dailyScore >= 4 ? "🔥 Elite execution" : dailyScore >= 2.5 ? "⚡ Room to improve" : "⚠ Needs attention"}
+          <p className="text-[10px] text-muted-foreground mt-1">{todayPoints.toFixed(1)} / {maxPossiblePoints.toFixed(1)} pts</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {dailyScorePercent >= 80 ? "🔥 Elite execution" : dailyScorePercent >= 50 ? "⚡ Room to improve" : "⚠ Needs attention"}
           </p>
         </motion.div>
 

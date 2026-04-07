@@ -116,7 +116,7 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
     return { month: m, trades: monthTrades.length, pnl: totalR, discipline: avgDisc };
   });
 
-  // Month drill-down view
+  // Month drill-down view — rendered as a larger modal
   const renderMonthDrill = (month: number) => {
     const monthDays = getDaysInMonth(year, month);
     const monthWeeks: Date[][] = [];
@@ -132,47 +132,93 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
     }
     if (mWeek.length > 0) monthWeeks.push(mWeek);
 
+    // Monthly stats
+    const monthTrades = trades.filter((t) => {
+      const d = new Date(t.date);
+      return d.getFullYear() === year && d.getMonth() === month;
+    });
+    const totalR = monthTrades.reduce((s, t) => s + (t.result_r ?? 0), 0);
+    const wins = monthTrades.filter((t) => (t.result_r ?? 0) > 0).length;
+    const avgDisc = monthTrades.length > 0
+      ? monthTrades.reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0) / monthTrades.length
+      : 0;
+
     return (
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-semibold text-foreground">{getMonthLabel(month)} {year} — Detailed View</span>
-          <button onClick={() => setDrillMonth(null)} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">← Back to Year</button>
-        </div>
-        <div className="flex gap-[3px]">
-          <div className="flex flex-col gap-[3px] mr-1">
-            {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-              <span key={i} className="text-[9px] text-muted-foreground h-[18px] leading-[18px] w-4 text-center">{d}</span>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-md p-6"
+        onClick={() => setDrillMonth(null)}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card-elevated max-w-2xl w-full max-h-[80vh] overflow-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-lg font-semibold text-foreground">{getMonthLabel(month)} {year}</span>
+            <button onClick={() => setDrillMonth(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1 border border-border rounded-lg">
+              ← Back
+            </button>
+          </div>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-4 gap-3 mb-6">
+            {[
+              { label: "Trades", value: monthTrades.length.toString() },
+              { label: "Win Rate", value: monthTrades.length > 0 ? `${Math.round((wins / monthTrades.length) * 100)}%` : "—" },
+              { label: "Total R", value: `${totalR > 0 ? "+" : ""}${totalR.toFixed(1)}R` },
+              { label: "Avg Discipline", value: avgDisc.toFixed(1) },
+            ].map((s) => (
+              <div key={s.label} className="glass-card !p-3 text-center">
+                <span className="text-[10px] text-muted-foreground">{s.label}</span>
+                <p className="text-sm font-bold text-foreground mt-1">{s.value}</p>
+              </div>
             ))}
           </div>
-          {monthWeeks.map((week, wi) => (
-            <div key={wi} className="flex flex-col gap-[3px]">
-              {Array.from({ length: 7 }, (_, di) => {
-                const day = week[di];
-                if (!day) return <div key={di} className="w-[18px] h-[18px]" />;
-                const dateStr = day.toISOString().slice(0, 10);
-                const data = dayData[dateStr];
-                const isWknd = isWeekend(day);
-                return (
-                  <div
-                    key={di}
-                    className={`w-[18px] h-[18px] rounded flex items-center justify-center text-[8px] cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 ${getCellColor(dateStr, day)} ${isWknd && settings.excludeWeekends ? "opacity-30" : ""}`}
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setHoveredDay({
-                        date: dateStr,
-                        value: data ? (mode === "pnl" ? data.pnl : data.discipline / Math.max(data.count, 1)) : 0,
-                        x: rect.left, y: rect.top,
-                      });
-                    }}
-                    onMouseLeave={() => setHoveredDay(null)}
-                  >
-                    <span className="text-muted-foreground/60">{day.getDate()}</span>
-                  </div>
-                );
-              })}
+
+          {/* Calendar grid */}
+          <div className="flex gap-1 justify-center">
+            <div className="flex flex-col gap-1 mr-1">
+              {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                <span key={i} className="text-[10px] text-muted-foreground h-10 leading-10 w-5 text-center">{d}</span>
+              ))}
             </div>
-          ))}
-        </div>
+            {monthWeeks.map((week, wi) => (
+              <div key={wi} className="flex flex-col gap-1">
+                {Array.from({ length: 7 }, (_, di) => {
+                  const day = week[di];
+                  if (!day) return <div key={di} className="w-10 h-10" />;
+                  const dateStr = day.toISOString().slice(0, 10);
+                  const data = dayData[dateStr];
+                  const isWknd = isWeekend(day);
+                  return (
+                    <div
+                      key={di}
+                      className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 ${getCellColor(dateStr, day)} ${isWknd && settings.excludeWeekends ? "opacity-30" : ""}`}
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoveredDay({
+                          date: dateStr,
+                          value: data ? (mode === "pnl" ? data.pnl : data.discipline / Math.max(data.count, 1)) : 0,
+                          x: rect.left, y: rect.top,
+                        });
+                      }}
+                      onMouseLeave={() => setHoveredDay(null)}
+                    >
+                      <span className="text-[10px] text-muted-foreground/80">{day.getDate()}</span>
+                      {data && data.count > 0 && (
+                        <span className="text-[8px] text-foreground/60">{data.count}t</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </motion.div>
       </motion.div>
     );
   };
@@ -209,79 +255,77 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
         </button>
       </div>
 
-      {drillMonth !== null ? (
-        renderMonthDrill(drillMonth)
-      ) : (
-        <>
-          {/* Heatmap Grid */}
-          <div className="overflow-x-auto relative">
-            <div className="flex gap-0 mb-1 ml-6">
-              {monthPositions.map(({ month, weekIndex }) => (
-                <span
-                  key={month}
-                  className="text-[9px] text-muted-foreground absolute"
-                  style={{ left: `${weekIndex * 14 + 24}px` }}
-                >
-                  {getMonthLabel(month)}
-                </span>
-              ))}
-            </div>
+      {drillMonth !== null && renderMonthDrill(drillMonth)}
 
-            <div className="flex gap-[2px] mt-4">
-              <div className="flex flex-col gap-[2px] mr-1">
-                {["", "M", "", "W", "", "F", ""].map((d, i) => (
-                  <span key={i} className="text-[8px] text-muted-foreground h-[11px] leading-[11px]">{d}</span>
-                ))}
-              </div>
+      {/* Heatmap Grid */}
+      <div className="overflow-x-auto relative">
+        <div className="flex gap-0 mb-1 ml-6">
+          {monthPositions.map(({ month, weekIndex }) => (
+            <span
+              key={month}
+              className="text-[9px] text-muted-foreground absolute cursor-pointer hover:text-primary transition-colors"
+              style={{ left: `${weekIndex * 14 + 24}px` }}
+              onClick={() => setDrillMonth(month)}
+            >
+              {getMonthLabel(month)}
+            </span>
+          ))}
+        </div>
 
-              {weeks.map((week, wi) => (
-                <div key={wi} className="flex flex-col gap-[2px]">
-                  {Array.from({ length: 7 }, (_, di) => {
-                    const day = week[di];
-                    if (!day) return <div key={di} className="w-[11px] h-[11px]" />;
-                    const dateStr = day.toISOString().slice(0, 10);
-                    const data = dayData[dateStr];
-                    const isWknd = isWeekend(day);
-                    return (
-                      <div
-                        key={di}
-                        className={`w-[11px] h-[11px] rounded-sm cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 ${getCellColor(dateStr, day)} ${isWknd && settings.excludeWeekends ? "opacity-20" : ""}`}
-                        onMouseEnter={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setHoveredDay({
-                            date: dateStr,
-                            value: data ? (mode === "pnl" ? data.pnl : data.discipline / Math.max(data.count, 1)) : 0,
-                            x: rect.left, y: rect.top,
-                          });
-                        }}
-                        onMouseLeave={() => setHoveredDay(null)}
-                      />
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-
-            {/* Tooltip */}
-            <AnimatePresence>
-              {hoveredDay && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed z-[60] px-2 py-1 rounded-lg bg-card border border-border text-xs shadow-xl pointer-events-none"
-                  style={{ left: hoveredDay.x + 16, top: hoveredDay.y - 8 }}
-                >
-                  <span className="text-muted-foreground">{hoveredDay.date}</span>
-                  <span className={`ml-2 font-semibold ${hoveredDay.value >= 0 ? "text-primary" : "text-destructive"}`}>
-                    {mode === "pnl" ? `${hoveredDay.value > 0 ? "+" : ""}${hoveredDay.value.toFixed(1)}R` : `${hoveredDay.value.toFixed(1)} pts`}
-                  </span>
-                </motion.div>
-              )}
-            </AnimatePresence>
+        <div className="flex gap-[2px] mt-4">
+          <div className="flex flex-col gap-[2px] mr-1">
+            {["", "M", "", "W", "", "F", ""].map((d, i) => (
+              <span key={i} className="text-[8px] text-muted-foreground h-[11px] leading-[11px]">{d}</span>
+            ))}
           </div>
-        </>
-      )}
+
+          {weeks.map((week, wi) => (
+            <div key={wi} className="flex flex-col gap-[2px]">
+              {Array.from({ length: 7 }, (_, di) => {
+                const day = week[di];
+                if (!day) return <div key={di} className="w-[11px] h-[11px]" />;
+                const dateStr = day.toISOString().slice(0, 10);
+                const data = dayData[dateStr];
+                const isWknd = isWeekend(day);
+                return (
+                  <div
+                    key={di}
+                    className={`w-[11px] h-[11px] rounded-sm cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 ${getCellColor(dateStr, day)} ${isWknd && settings.excludeWeekends ? "opacity-20" : ""}`}
+                    onClick={() => day && setDrillMonth(day.getMonth())}
+                    onMouseEnter={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setHoveredDay({
+                        date: dateStr,
+                        value: data ? (mode === "pnl" ? data.pnl : data.discipline / Math.max(data.count, 1)) : 0,
+                        x: rect.left, y: rect.top,
+                      });
+                    }}
+                    onMouseLeave={() => setHoveredDay(null)}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Tooltip */}
+        <AnimatePresence>
+          {hoveredDay && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed z-[60] px-2 py-1 rounded-lg bg-card border border-border text-xs shadow-xl pointer-events-none"
+              style={{ left: hoveredDay.x + 16, top: hoveredDay.y - 8 }}
+            >
+              <span className="text-muted-foreground">{hoveredDay.date}</span>
+              <span className={`ml-2 font-semibold ${hoveredDay.value >= 0 ? "text-primary" : "text-destructive"}`}>
+                {mode === "pnl" ? `${hoveredDay.value > 0 ? "+" : ""}${hoveredDay.value.toFixed(1)}R` : `${hoveredDay.value.toFixed(1)} pts`}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* Monthly Overview (click to drill) */}
       {expanded && drillMonth === null && (

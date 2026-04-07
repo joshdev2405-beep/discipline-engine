@@ -543,6 +543,33 @@ function TradeEntryForm({ onClose, onSuccess, editTrade, editTags }: {
             const baseXP = resultR ? 50 + 25 : 50;
             awardXP(resultR ? "trade_closed" : "journal_entry", baseXP);
           }
+
+          // Check if daily target achieved → +40 XP
+          const todayStr = format(endDate, "yyyy-MM-dd");
+          const { data: todayTrades } = await supabase
+            .from("trades")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("date", todayStr)
+            .eq("status", "closed");
+          if (todayTrades) {
+            const { computeDisciplineScore: calcScore } = await import("@/lib/settings");
+            const todayPoints = todayTrades.reduce((s: number, t: any) => s + calcScore(t, settings), 0);
+            if (todayPoints >= settings.dailyPointAvg) {
+              // Check if already awarded today
+              const { count } = await supabase
+                .from("xp_events" as any)
+                .select("*", { count: "exact", head: true })
+                .eq("user_id", user.id)
+                .eq("event_type", "daily_target_achieved")
+                .gte("created_at", `${todayStr}T00:00:00`)
+                .lte("created_at", `${todayStr}T23:59:59`);
+              if ((count ?? 0) === 0) {
+                awardXP("daily_target_achieved", 40);
+                toast.success("🎯 Daily Target Achieved! +40 XP");
+              }
+            }
+          }
         }
       }
 

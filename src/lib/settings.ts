@@ -30,7 +30,6 @@ export interface AppSettings {
   tradeRows: TradeRowConfig[];
   mandatoryFields: MandatoryField[];
   monthlyPointTarget: number;
-  targetMode: "fixed" | "daily";
   dailyPointAvg: number;
   excludeWeekends: boolean;
   retrospectiveRules: boolean;
@@ -79,7 +78,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   tradeRows: buildDefaultTradeRows(3),
   mandatoryFields: ["mood", "rules", "notes"],
   monthlyPointTarget: 90,
-  targetMode: "fixed",
   dailyPointAvg: 3,
   excludeWeekends: true,
   retrospectiveRules: false,
@@ -211,6 +209,16 @@ export const useSettings = create<SettingsStore>((set) => ({
       return { settings: DEFAULT_SETTINGS };
     }),
 }));
+
+export function computeMaxPossiblePoints(settings: AppSettings): number {
+  let maxPerDay = 0;
+  for (const row of settings.tradeRows) {
+    const rowMax = row.metrics.reduce((s, m) => s + m.points, 0);
+    maxPerDay += rowMax * row.decayMultiplier;
+  }
+  // Scale to 0-5 like computeDisciplineScore does per trade, but sum across all rows
+  return maxPerDay > 0 ? Math.round(maxPerDay * 10) / 10 : 0;
+}
 
 export function computeDisciplineScore(
   trade: { followed_rules: boolean; intent_notes: string | null; before_screenshot_url: string | null; after_screenshot_url: string | null; trade_number: number },
