@@ -137,11 +137,12 @@ export default function Dashboard() {
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card-elevated glow-emerald flex flex-col items-center justify-center py-8">
           <span className="stat-label mb-3">Daily Discipline Score</span>
           <div className="relative">
-            <span className="text-6xl font-black text-primary">{dailyScore}</span>
-            <span className="text-lg text-primary/60 ml-1">/5</span>
+            <span className="text-6xl font-black text-primary">{dailyScorePercent}</span>
+            <span className="text-lg text-primary/60 ml-1">%</span>
           </div>
-          <p className="text-[10px] text-muted-foreground mt-2">
-            {dailyScore >= 4 ? "🔥 Elite execution" : dailyScore >= 2.5 ? "⚡ Room to improve" : "⚠ Needs attention"}
+          <p className="text-[10px] text-muted-foreground mt-1">{todayPoints.toFixed(1)} / {maxPossiblePoints.toFixed(1)} pts</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {dailyScorePercent >= 80 ? "🔥 Elite execution" : dailyScorePercent >= 50 ? "⚡ Room to improve" : "⚠ Needs attention"}
           </p>
         </motion.div>
 
