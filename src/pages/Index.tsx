@@ -4,7 +4,7 @@ import GaugeChart from "@/components/GaugeChart";
 import PerformanceHeatmap from "@/components/PerformanceHeatmap";
 import { useTrades, Trade } from "@/hooks/use-trades";
 import { MOOD_LABELS } from "@/lib/types";
-import { useSettings, computeDisciplineScore, computeRuleStreak } from "@/lib/settings";
+import { useSettings, computeDisciplineScore, computeRuleStreak, computeMaxPossiblePoints } from "@/lib/settings";
 import { AlertTriangle, TrendingUp, Brain, Shield, Flame, Camera, Target, Sparkles, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
