@@ -30,7 +30,6 @@ export interface AppSettings {
   tradeRows: TradeRowConfig[];
   mandatoryFields: MandatoryField[];
   monthlyPointTarget: number;
-  targetMode: "fixed" | "daily";
   dailyPointAvg: number;
   excludeWeekends: boolean;
   retrospectiveRules: boolean;
