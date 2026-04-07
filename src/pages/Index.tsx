@@ -36,10 +36,10 @@ export default function Dashboard() {
   const todayTrades = trades.filter(
     (t) => (t.end_date || t.date) === new Date().toISOString().slice(0, 10) && t.status === "closed"
   );
-  const dailyScore = todayTrades.length > 0
-    ? Math.round(
-        (todayTrades.reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0) / todayTrades.length) * 10
-      ) / 10
+  const todayPoints = todayTrades.reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0);
+  const maxPossiblePoints = computeMaxPossiblePoints(settings);
+  const dailyScorePercent = maxPossiblePoints > 0
+    ? Math.min(Math.round((todayPoints / maxPossiblePoints) * 100), 100)
     : 0;
 
   const streak = computeRuleStreak(closedTrades, settings.excludeWeekends);
