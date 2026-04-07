@@ -9,6 +9,7 @@ const XP_RULES = [
   { icon: Calendar, label: "Daily Login", base: 10, description: "Log in each day" },
   { icon: BookOpen, label: "Journal Entry", base: 50, description: "Log a new trade" },
   { icon: Target, label: "Result Entry", base: 25, description: "Close a trade with result" },
+  { icon: Flame, label: "Daily Target Achieved", base: 40, description: "Hit your Daily Avg Points target" },
 ];
 
 const STREAK_TIERS = [
