@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
 import BottomNav from "@/components/BottomNav";
@@ -6,14 +7,20 @@ import Dashboard from "@/pages/Dashboard";
 import Journal from "@/pages/Journal";
 import Analytics from "@/pages/Analytics";
 import Profile from "@/pages/Profile";
+import { initializeSessionSync } from "@/lib/session";
 
 function AppRoutes() {
   const { session, loading } = useAuth();
 
+  useEffect(() => {
+    const unsubscribe = initializeSessionSync();
+    return () => unsubscribe();
+  }, []);
+
   if (loading) {
     return (
       <div className="h-full w-full bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+        <div className="text-muted-foreground">Loading session...</div>
       </div>
     );
   }
