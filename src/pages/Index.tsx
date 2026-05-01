@@ -4,7 +4,7 @@ import GaugeChart from "@/components/GaugeChart";
 import PerformanceHeatmap from "@/components/PerformanceHeatmap";
 import { useTrades, Trade } from "@/hooks/use-trades";
 import { MOOD_LABELS } from "@/lib/types";
-import { useSettings, computeDisciplineScore, computeRuleStreak, computeMaxPossiblePoints } from "@/lib/settings";
+import { useSettings, computeDisciplineScore, computeRuleStreak } from "@/lib/settings";
 import { AlertTriangle, TrendingUp, Brain, Shield, Flame, Camera, Target, Sparkles, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,7 +37,8 @@ export default function Dashboard() {
     (t) => (t.end_date || t.date) === new Date().toISOString().slice(0, 10) && t.status === "closed"
   );
   const todayPoints = todayTrades.reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0);
-  const maxPossiblePoints = computeMaxPossiblePoints(settings);
+  // Daily Discipline Score ceiling is driven directly by the Daily Avg Points setting
+  const maxPossiblePoints = settings.dailyPointAvg || 1;
   const dailyScorePercent = maxPossiblePoints > 0
     ? Math.min(Math.round((todayPoints / maxPossiblePoints) * 100), 100)
     : 0;
