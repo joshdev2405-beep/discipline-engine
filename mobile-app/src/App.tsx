@@ -4,9 +4,7 @@ import { AuthProvider, useAuth } from "@/components/AuthProvider";
 import BottomNav from "@/components/BottomNav";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
-import Journal from "@/pages/Journal";
-import Analytics from "@/pages/Analytics";
-import Profile from "@/pages/Profile";
+import Settings from "@/pages/Settings";
 import { initializeSessionSync } from "@/lib/session";
 
 function AppRoutes() {
@@ -33,9 +31,7 @@ function AppRoutes() {
     <div className="h-full w-full bg-background overflow-hidden">
       <Routes>
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/journal" element={<Journal />} />
-        <Route path="/analytics" element={<Analytics />} />
-        <Route path="/profile" element={<Profile />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       <BottomNav />
