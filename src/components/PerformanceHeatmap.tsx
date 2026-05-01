@@ -52,29 +52,30 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
 
   const dailyTarget = settings.dailyPointAvg || 3;
 
-  const getCellColor = (dateStr: string, date?: Date) => {
-    // Weekend handling
+  // Vantablack-tier scale: deep neutral charcoal → vibrant emerald
+  const getCellStyle = (dateStr: string, date?: Date): React.CSSProperties => {
     if (date && settings.excludeWeekends && isWeekend(date)) {
-      return "bg-muted/10"; // Gray/null for weekends
+      return { backgroundColor: "hsl(var(--muted) / 0.08)" };
     }
-
     const data = dayData[dateStr];
-    if (!data || data.count === 0) return "bg-muted/30";
-
-    if (mode === "pnl") {
-      if (data.pnl > 2) return "bg-primary/80";
-      if (data.pnl > 0) return "bg-primary/40";
-      if (data.pnl === 0) return "bg-muted-foreground/20";
-      if (data.pnl > -2) return "bg-destructive/40";
-      return "bg-destructive/80";
-    } else {
-      const avgDisc = data.discipline / data.count;
-      if (avgDisc >= dailyTarget) return "bg-primary/70";
-      if (avgDisc >= dailyTarget * 0.7) return "bg-primary/35";
-      if (avgDisc >= dailyTarget * 0.4) return "bg-accent/40";
-      return "bg-destructive/50";
+    if (!data || data.count === 0) {
+      return { backgroundColor: "hsl(220 6% 10%)" };
     }
+    if (mode === "pnl") {
+      if (data.pnl >= 0) {
+        const i = Math.min(data.pnl / 4, 1);
+        return { backgroundColor: `hsl(var(--primary) / ${0.18 + i * 0.82})` };
+      }
+      const neg = Math.min(Math.abs(data.pnl) / 4, 1);
+      return { backgroundColor: `hsl(var(--destructive) / ${0.18 + neg * 0.7})` };
+    }
+    const avgDisc = data.discipline / data.count;
+    const i = Math.min(avgDisc / Math.max(dailyTarget, 0.1), 1);
+    if (i < 0.05) return { backgroundColor: "hsl(220 6% 14%)" };
+    return { backgroundColor: `hsl(var(--primary) / ${0.18 + i * 0.82})` };
   };
+
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   // Year view
   const days = getDaysInYear(year);
@@ -194,10 +195,12 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
                   const dateStr = day.toISOString().slice(0, 10);
                   const data = dayData[dateStr];
                   const isWknd = isWeekend(day);
+                  const isToday = dateStr === todayStr;
                   return (
                     <div
                       key={di}
-                      className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 ${getCellColor(dateStr, day)} ${isWknd && settings.excludeWeekends ? "opacity-30" : ""}`}
+                      style={getCellStyle(dateStr, day)}
+                      className={`w-10 h-10 rounded-md flex flex-col items-center justify-center cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 aspect-square ${isWknd && settings.excludeWeekends ? "opacity-30" : ""} ${isToday ? "ring-2 ring-primary shadow-[0_0_12px_hsl(var(--primary)/0.6)]" : ""}`}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
                         setHoveredDay({
@@ -359,16 +362,26 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
       )}
 
       {/* Legend */}
-      <div className="flex items-center gap-2 mt-3">
+      <div className="flex items-center gap-2 mt-3 flex-wrap">
         <span className="text-[9px] text-muted-foreground">Less</span>
-        {["bg-muted/30", mode === "pnl" ? "bg-destructive/40" : "bg-accent/40", "bg-muted-foreground/20", mode === "pnl" ? "bg-primary/40" : "bg-primary/35", mode === "pnl" ? "bg-primary/80" : "bg-primary/70"].map((c, i) => (
-          <div key={i} className={`w-[11px] h-[11px] rounded-sm ${c}`} />
+        {[null, 0.25, 0.45, 0.7, 1].map((a, i) => (
+          <div
+            key={i}
+            className="w-3 h-3 rounded-[3px] aspect-square"
+            style={{ backgroundColor: a == null ? "hsl(220 6% 10%)" : `hsl(var(--primary) / ${a})` }}
+          />
         ))}
         <span className="text-[9px] text-muted-foreground">More</span>
+        <span className="text-[9px] text-muted-foreground ml-2">|</span>
+        <div
+          className="w-3 h-3 rounded-[3px] aspect-square ring-2 ring-primary shadow-[0_0_8px_hsl(var(--primary)/0.7)]"
+          style={{ backgroundColor: "hsl(220 6% 10%)" }}
+        />
+        <span className="text-[9px] text-muted-foreground">Today</span>
         {settings.excludeWeekends && (
           <>
             <span className="text-[9px] text-muted-foreground ml-2">|</span>
-            <div className="w-[11px] h-[11px] rounded-sm bg-muted/10 opacity-30" />
+            <div className="w-3 h-3 rounded-[3px] aspect-square opacity-30" style={{ backgroundColor: "hsl(var(--muted) / 0.08)" }} />
             <span className="text-[9px] text-muted-foreground">Weekend</span>
           </>
         )}
