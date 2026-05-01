@@ -871,3 +871,110 @@ export default function Journal() {
     </div>
   );
 }
+
+function StrategyPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { strategies, addStrategy, removeStrategy } = useStrategies();
+  const [open, setOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  const handleAdd = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    await addStrategy.mutateAsync(name);
+    onChange(name);
+    setNewName("");
+    setAddOpen(false);
+  };
+
+  return (
+    <div className="mt-1 flex items-center gap-1.5">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground hover:border-primary/40 transition-colors flex items-center justify-between"
+          >
+            <span className={cn("truncate", !value && "text-muted-foreground")}>
+              {value || "Select strategy"}
+            </span>
+            <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0 ml-2" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-1 bg-card/95 backdrop-blur-xl border-border/50" align="start">
+          {strategies.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground px-3 py-2">No strategies yet. Add one →</p>
+          ) : (
+            <div className="max-h-56 overflow-y-auto py-1">
+              {strategies.map((s) => (
+                <div
+                  key={s.id}
+                  className={cn(
+                    "group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs cursor-pointer hover:bg-primary/10 transition-colors",
+                    value === s.name && "bg-primary/15 text-primary"
+                  )}
+                  onClick={() => {
+                    onChange(s.name);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="truncate">{s.name}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeStrategy.mutate(s.id);
+                      if (value === s.name) onChange("");
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition-all"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+
+      <Popover open={addOpen} onOpenChange={setAddOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="shrink-0 h-9 w-9 flex items-center justify-center bg-primary/10 border border-primary/30 rounded-lg text-primary hover:bg-primary/20 transition-colors"
+            title="Add strategy"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-3 bg-card/95 backdrop-blur-xl border-border/50" align="end">
+          <label className="text-[10px] uppercase tracking-widest text-muted-foreground">New Strategy</label>
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+            placeholder="e.g. Breakout Long"
+            autoFocus
+            className="w-full mt-1.5 bg-muted/50 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
+          />
+          <div className="flex justify-end gap-1.5 mt-2">
+            <button
+              type="button"
+              onClick={() => setAddOpen(false)}
+              className="px-2.5 py-1 text-[10px] text-muted-foreground border border-border rounded-md hover:bg-secondary/50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleAdd}
+              className="px-2.5 py-1 text-[10px] bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+            >
+              Add
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
