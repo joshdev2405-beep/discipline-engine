@@ -272,25 +272,27 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
           ))}
         </div>
 
-        <div className="flex gap-[2px] mt-4">
-          <div className="flex flex-col gap-[2px] mr-1">
+        <div className="flex gap-[3px] mt-4">
+          <div className="flex flex-col gap-[3px] mr-1">
             {["", "M", "", "W", "", "F", ""].map((d, i) => (
-              <span key={i} className="text-[8px] text-muted-foreground h-[11px] leading-[11px]">{d}</span>
+              <span key={i} className="text-[8px] text-muted-foreground h-3 leading-3">{d}</span>
             ))}
           </div>
 
           {weeks.map((week, wi) => (
-            <div key={wi} className="flex flex-col gap-[2px]">
+            <div key={wi} className="flex flex-col gap-[3px]">
               {Array.from({ length: 7 }, (_, di) => {
                 const day = week[di];
-                if (!day) return <div key={di} className="w-[11px] h-[11px]" />;
+                if (!day) return <div key={di} className="w-3 h-3" />;
                 const dateStr = day.toISOString().slice(0, 10);
                 const data = dayData[dateStr];
                 const isWknd = isWeekend(day);
+                const isToday = dateStr === todayStr;
                 return (
                   <div
                     key={di}
-                    className={`w-[11px] h-[11px] rounded-sm cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 ${getCellColor(dateStr, day)} ${isWknd && settings.excludeWeekends ? "opacity-20" : ""}`}
+                    style={getCellStyle(dateStr, day)}
+                    className={`w-3 h-3 rounded-[3px] aspect-square cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 ${isWknd && settings.excludeWeekends ? "opacity-20" : ""} ${isToday ? "ring-2 ring-primary shadow-[0_0_8px_hsl(var(--primary)/0.7)]" : ""}`}
                     onClick={() => day && setDrillMonth(day.getMonth())}
                     onMouseEnter={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
