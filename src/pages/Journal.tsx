@@ -10,6 +10,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useConditions, CONDITION_TEMPLATES, type Condition, type ConditionType, type ConditionValue } from "@/lib/conditions";
 import { useOperatorMode } from "@/lib/operator-mode";
 import { BookOpen, Plus, X, Check, Image, ChevronDown, ChevronUp, Pencil, Trash2, Loader2, Calendar, AlertTriangle, Upload } from "lucide-react";
+import { useStrategies } from "@/hooks/use-strategies";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -634,7 +635,7 @@ function TradeEntryForm({ onClose, onSuccess, editTrade, editTags }: {
         </div>
         <div>
           <label className="stat-label">Strategy</label>
-          <input value={strategy} onChange={(e) => setStrategy(e.target.value)} className="w-full mt-1 bg-muted/50 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors" placeholder="Breakout Long" />
+          <StrategyPicker value={strategy} onChange={setStrategy} />
         </div>
         <div>
           <label className="stat-label">Trade #</label>
