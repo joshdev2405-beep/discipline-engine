@@ -66,15 +66,18 @@ export default function Settings() {
 
       {/* Trade Targets — Two-Way Linked */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card-elevated">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-2">
             <Target className="h-4 w-4 text-accent" />
             <span className="stat-label text-accent">Targets</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Calendar className="h-3 w-3 text-muted-foreground" />
-            <span className="text-[10px] text-muted-foreground whitespace-nowrap">Excl. Weekends</span>
-            <Switch checked={settings.excludeWeekends} onCheckedChange={handleWeekendToggle} className="scale-75" />
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap">Excl. Weekends</span>
+              <Switch checked={settings.excludeWeekends} onCheckedChange={handleWeekendToggle} className="scale-75" />
+            </div>
+            <span className="text-[10px] text-muted-foreground/70 whitespace-nowrap">{tradingDays} trading days</span>
           </div>
         </div>
 
@@ -94,9 +97,6 @@ export default function Settings() {
             min={1}
             max={500}
           />
-          <div className="flex-shrink-0 pb-1">
-            <span className="text-[10px] text-muted-foreground">{tradingDays} trading days</span>
-          </div>
           <InlineField label="Monthly Trade Target" value={settings.monthlyTradeTarget} onChange={(v) => updateSettings({ monthlyTradeTarget: v })} min={1} max={200} />
           <InlineField label="Photo Quota" value={settings.monthlyPhotoQuota} onChange={(v) => updateSettings({ monthlyPhotoQuota: v })} min={0} max={100} />
           <InlineField label="Daily Cap" value={settings.dailyCap} onChange={(v) => setDailyCap(v)} min={1} max={10} />
