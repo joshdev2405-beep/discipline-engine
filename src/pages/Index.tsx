@@ -91,6 +91,7 @@ export default function Dashboard() {
   // AI Insights
   const [aiInsights, setAiInsights] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [selectedHeatmapDate, setSelectedHeatmapDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (closedTrades.length > 0) {
@@ -191,7 +192,11 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Performance Heatmap */}
-      <PerformanceHeatmap trades={closedTrades} />
+      <PerformanceHeatmap
+        trades={closedTrades}
+        selectedDate={selectedHeatmapDate}
+        onSelectDate={setSelectedHeatmapDate}
+      />
 
       {/* Discipline Scores Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
