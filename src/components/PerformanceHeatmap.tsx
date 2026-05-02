@@ -417,7 +417,7 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
                     key={di}
                     style={getCellStyle(dateStr, day)}
                     className={`w-3 h-3 rounded-[3px] aspect-square cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 ${isWknd && settings.excludeWeekends ? "opacity-20" : ""} ${isToday ? "ring-2 ring-primary shadow-[0_0_8px_hsl(var(--primary)/0.7)]" : ""}`}
-                    onClick={() => day && setDrillMonth(day.getMonth())}
+                    onClick={() => { if (day) { setDrillDay(null); setDrillMonth(day.getMonth()); } }}
                     onMouseEnter={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       setHoveredDay({
@@ -463,7 +463,7 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
           {monthlySummary.map((m) => (
             <button
               key={m.month}
-              onClick={() => setDrillMonth(m.month)}
+              onClick={() => { setDrillDay(null); setDrillMonth(m.month); }}
               className={`p-3 rounded-lg border transition-all text-left hover:ring-1 hover:ring-primary/30 ${
                 m.trades > 0
                   ? mode === "pnl"
