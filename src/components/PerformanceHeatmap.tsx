@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
 import { Trade } from "@/hooks/use-trades";
-import { useSettings, computeDisciplineScore, isWeekend } from "@/lib/settings";
+import { useSettings, computeDisciplineScore, isWeekend, AppSettings } from "@/lib/settings";
 
 type HeatmapMode = "pnl" | "discipline";
 
@@ -261,7 +261,7 @@ function DayBreakdown({
 }: {
   date: string;
   trades: Trade[];
-  settings: ReturnType<typeof useSettings>["settings"];
+  settings: AppSettings;
   onClose: () => void;
 }) {
   const totalR = trades.reduce((s, t) => s + (t.result_r ?? 0), 0);
