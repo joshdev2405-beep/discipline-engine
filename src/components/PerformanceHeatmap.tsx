@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, ArrowLeft } from "lucide-react";
 import { Trade } from "@/hooks/use-trades";
-import { useSettings, computeDisciplineScore, isWeekend } from "@/lib/settings";
+import { useSettings, computeDisciplineScore, isWeekend, type AppSettings } from "@/lib/settings";
 import { useNavigate } from "react-router-dom";
 
 type HeatmapMode = "pnl" | "discipline";
@@ -36,6 +36,7 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
   const [expanded, setExpanded] = useState(false);
   const [hoveredDay, setHoveredDay] = useState<{ date: string; value: number; x: number; y: number } | null>(null);
   const [drillMonth, setDrillMonth] = useState<number | null>(null);
+  const [drillDay, setDrillDay] = useState<string | null>(null);
   const { settings } = useSettings();
 
   const year = new Date().getFullYear();
@@ -150,7 +151,7 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-md p-6"
-        onClick={() => setDrillMonth(null)}
+        onClick={() => { setDrillMonth(null); setDrillDay(null); }}
       >
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -158,12 +159,31 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
           className="glass-card-elevated max-w-2xl w-full max-h-[80vh] overflow-auto"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-lg font-semibold text-foreground">{getMonthLabel(month)} {year}</span>
-            <button onClick={() => setDrillMonth(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1 border border-border rounded-lg">
-              ← Back
-            </button>
-          </div>
+          <AnimatePresence mode="wait">
+            {drillDay ? (
+              <motion.div
+                key="day-view"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+              >
+                {renderDayDetail(drillDay)}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="month-view"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-lg font-semibold text-foreground">{getMonthLabel(month)} {year}</span>
+                  <button onClick={() => setDrillMonth(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1 border border-border rounded-lg">
+                    ← Back
+                  </button>
+                </div>
 
           {/* Stats row */}
           <div className="grid grid-cols-4 gap-3 mb-6">
@@ -201,6 +221,7 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
                       key={di}
                       style={getCellStyle(dateStr, day)}
                       className={`w-10 h-10 rounded-md flex flex-col items-center justify-center cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 aspect-square ${isWknd && settings.excludeWeekends ? "opacity-30" : ""} ${isToday ? "ring-2 ring-primary shadow-[0_0_12px_hsl(var(--primary)/0.6)]" : ""}`}
+                      onClick={() => setDrillDay(dateStr)}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
                         setHoveredDay({
@@ -221,8 +242,108 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
               </div>
             ))}
           </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </motion.div>
+    );
+  };
+
+  // Day detail — replaces month grid in-place inside the same modal
+  const renderDayDetail = (dateStr: string) => {
+    const dayTrades = trades.filter((t) => t.date === dateStr);
+    const totalR = dayTrades.reduce((s, t) => s + (t.result_r ?? 0), 0);
+    const wins = dayTrades.filter((t) => (t.result_r ?? 0) > 0).length;
+    const totalDiscipline = dayTrades.reduce((s, t) => s + computeDisciplineScore(t as any, settings), 0);
+    const avgDisc = dayTrades.length > 0 ? totalDiscipline / dayTrades.length : 0;
+    const dateObj = new Date(dateStr + "T00:00:00");
+    const formatted = dateObj.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setDrillDay(null)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1 border border-border rounded-lg"
+          >
+            <ArrowLeft className="h-3 w-3" /> Back to month
+          </button>
+          <span className="text-sm font-semibold text-foreground">{formatted}</span>
+        </div>
+
+        {/* Day summary */}
+        <div className="grid grid-cols-4 gap-3 mb-6">
+          {[
+            { label: "Trades", value: dayTrades.length.toString() },
+            { label: "Win Rate", value: dayTrades.length > 0 ? `${Math.round((wins / dayTrades.length) * 100)}%` : "—" },
+            { label: "Total R", value: `${totalR > 0 ? "+" : ""}${totalR.toFixed(1)}R` },
+            { label: "Discipline", value: `${totalDiscipline.toFixed(1)} pts` },
+          ].map((s) => (
+            <div key={s.label} className="glass-card !p-3 text-center">
+              <span className="text-[10px] text-muted-foreground">{s.label}</span>
+              <p className="text-sm font-bold text-foreground mt-1">{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Trades list */}
+        {dayTrades.length === 0 ? (
+          <div className="text-center py-12 text-xs text-muted-foreground border border-dashed border-border rounded-lg">
+            No trades recorded on this day.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <span className="stat-label text-primary">Trades</span>
+            {dayTrades.map((t) => {
+              const r = t.result_r ?? 0;
+              const disc = computeDisciplineScore(t as any, settings);
+              return (
+                <div key={t.id} className="glass-card !p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[10px] text-muted-foreground w-6">#{t.trade_number}</span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{t.symbol || "—"}</p>
+                      <span className="text-[10px] text-muted-foreground truncate block">{t.strategy || "No strategy"}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className="text-right">
+                      <span className="text-[9px] text-muted-foreground block">Discipline</span>
+                      <p className="text-xs font-semibold text-foreground">{disc.toFixed(1)}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[9px] text-muted-foreground block">Result</span>
+                      <p className={`text-xs font-bold ${r >= 0 ? "text-primary" : "text-destructive"}`}>
+                        {t.status === "open" ? "Open" : `${r > 0 ? "+" : ""}${r.toFixed(2)}R`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Discipline breakdown */}
+            <div className="mt-4 pt-3 border-t border-border">
+              <span className="stat-label text-primary">Discipline Breakdown</span>
+              <div className="mt-2 flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Average per trade</span>
+                <span className="font-semibold text-foreground">{avgDisc.toFixed(2)} pts</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Daily target</span>
+                <span className="font-semibold text-foreground">{(settings.dailyPointAvg || 0).toFixed(1)} pts</span>
+              </div>
+              <div className="mt-2 h-1.5 bg-muted/30 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all"
+                  style={{ width: `${Math.min((totalDiscipline / Math.max(settings.dailyPointAvg || 1, 0.1)) * 100, 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -296,7 +417,7 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
                     key={di}
                     style={getCellStyle(dateStr, day)}
                     className={`w-3 h-3 rounded-[3px] aspect-square cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 ${isWknd && settings.excludeWeekends ? "opacity-20" : ""} ${isToday ? "ring-2 ring-primary shadow-[0_0_8px_hsl(var(--primary)/0.7)]" : ""}`}
-                    onClick={() => day && setDrillMonth(day.getMonth())}
+                    onClick={() => { if (day) { setDrillDay(null); setDrillMonth(day.getMonth()); } }}
                     onMouseEnter={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       setHoveredDay({
@@ -342,7 +463,7 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
           {monthlySummary.map((m) => (
             <button
               key={m.month}
-              onClick={() => setDrillMonth(m.month)}
+              onClick={() => { setDrillDay(null); setDrillMonth(m.month); }}
               className={`p-3 rounded-lg border transition-all text-left hover:ring-1 hover:ring-primary/30 ${
                 m.trades > 0
                   ? mode === "pnl"
