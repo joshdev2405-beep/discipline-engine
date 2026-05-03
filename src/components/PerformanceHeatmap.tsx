@@ -177,7 +177,7 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
             ))}
           </div>
 
-          {/* Calendar grid — full-width 7-column layout */}
+          {/* Calendar grid — full-width 7-column layout, wide rectangles mirroring Year cards */}
           <div className="w-full">
             <div className="grid grid-cols-7 gap-2 mb-2">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
@@ -188,16 +188,31 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
               {monthWeeks.flatMap((week, wi) =>
                 Array.from({ length: 7 }, (_, di) => {
                   const day = week[di];
-                  if (!day) return <div key={`${wi}-${di}`} className="aspect-square" />;
+                  if (!day) return <div key={`${wi}-${di}`} className="rounded-lg" style={{ aspectRatio: "16 / 10" }} />;
                   const dateStr = day.toISOString().slice(0, 10);
                   const data = dayData[dateStr];
                   const isWknd = isWeekend(day);
                   const isToday = dateStr === todayStr;
+                  const hasData = data && data.count > 0;
+                  const positive = hasData && (mode === "pnl" ? data.pnl >= 0 : (data.discipline / Math.max(data.count, 1)) >= dailyTarget);
+                  const borderClass = !hasData
+                    ? "border-border/40"
+                    : positive
+                      ? "border-primary/40 hover:border-primary/70"
+                      : "border-destructive/40 hover:border-destructive/70";
+                  const valueText = hasData
+                    ? mode === "pnl"
+                      ? `${data.pnl > 0 ? "+" : ""}${data.pnl.toFixed(1)}R`
+                      : `${(data.discipline / Math.max(data.count, 1)).toFixed(1)}`
+                    : "";
+                  const valueColor = !hasData
+                    ? "text-muted-foreground"
+                    : positive ? "text-primary" : "text-destructive";
                   return (
                     <div
                       key={`${wi}-${di}`}
-                      style={getCellStyle(dateStr, day)}
-                      className={`aspect-square w-full rounded-lg p-2 flex flex-col items-start justify-between cursor-pointer transition-all hover:ring-1 hover:ring-primary/60 hover:scale-[1.02] ${isWknd && settings.excludeWeekends ? "opacity-30" : ""} ${isToday ? "ring-2 ring-primary shadow-[0_0_16px_hsl(var(--primary)/0.6)]" : ""}`}
+                      style={{ aspectRatio: "16 / 10", backgroundColor: "hsl(220 6% 8%)" }}
+                      className={`w-full rounded-lg p-2 flex flex-col justify-between cursor-pointer transition-all border ${borderClass} hover:ring-1 hover:ring-primary/30 ${isWknd && settings.excludeWeekends ? "opacity-30" : ""} ${isToday ? "ring-2 ring-primary shadow-[0_0_12px_hsl(var(--primary)/0.6)]" : ""}`}
                       onClick={() => setDrillDay(dateStr)}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -209,17 +224,15 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
                       }}
                       onMouseLeave={() => setHoveredDay(null)}
                     >
-                      <span className="text-sm font-semibold text-foreground/90 leading-none">{day.getDate()}</span>
-                      {data && data.count > 0 ? (
-                        <div className="w-full flex items-end justify-between">
-                          <span className="text-[9px] uppercase tracking-wide text-foreground/60">{data.count}t</span>
-                          <span className={`text-[10px] font-bold ${mode === "pnl" ? (data.pnl >= 0 ? "text-foreground" : "text-foreground") : "text-foreground"}`}>
-                            {mode === "pnl"
-                              ? `${data.pnl > 0 ? "+" : ""}${data.pnl.toFixed(1)}R`
-                              : `${(data.discipline / Math.max(data.count, 1)).toFixed(1)}`}
-                          </span>
-                        </div>
-                      ) : null}
+                      <div className="flex items-start justify-between leading-none">
+                        <span className="text-[11px] font-semibold text-muted-foreground">{day.getDate()}</span>
+                        {hasData && (
+                          <span className="text-[9px] text-muted-foreground">{data.count}t</span>
+                        )}
+                      </div>
+                      {hasData && (
+                        <span className={`text-xs font-bold leading-none ${valueColor}`}>{valueText}</span>
+                      )}
                     </div>
                   );
                 })
