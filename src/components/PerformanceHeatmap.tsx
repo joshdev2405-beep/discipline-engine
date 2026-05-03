@@ -177,27 +177,27 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
             ))}
           </div>
 
-          {/* Calendar grid */}
-          <div className="flex gap-1 justify-center">
-            <div className="flex flex-col gap-1 mr-1">
-              {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-                <span key={i} className="text-[10px] text-muted-foreground h-10 leading-10 w-5 text-center">{d}</span>
+          {/* Calendar grid — full-width 7-column layout */}
+          <div className="w-full">
+            <div className="grid grid-cols-7 gap-2 mb-2">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                <span key={d} className="text-[10px] uppercase tracking-wider text-muted-foreground text-center">{d}</span>
               ))}
             </div>
-            {monthWeeks.map((week, wi) => (
-              <div key={wi} className="flex flex-col gap-1">
-                {Array.from({ length: 7 }, (_, di) => {
+            <div className="grid grid-cols-7 gap-2">
+              {monthWeeks.flatMap((week, wi) =>
+                Array.from({ length: 7 }, (_, di) => {
                   const day = week[di];
-                  if (!day) return <div key={di} className="w-10 h-10" />;
+                  if (!day) return <div key={`${wi}-${di}`} className="aspect-square" />;
                   const dateStr = day.toISOString().slice(0, 10);
                   const data = dayData[dateStr];
                   const isWknd = isWeekend(day);
                   const isToday = dateStr === todayStr;
                   return (
                     <div
-                      key={di}
+                      key={`${wi}-${di}`}
                       style={getCellStyle(dateStr, day)}
-                      className={`w-10 h-10 rounded-md flex flex-col items-center justify-center cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 aspect-square ${isWknd && settings.excludeWeekends ? "opacity-30" : ""} ${isToday ? "ring-2 ring-primary shadow-[0_0_12px_hsl(var(--primary)/0.6)]" : ""}`}
+                      className={`aspect-square w-full rounded-lg p-2 flex flex-col items-start justify-between cursor-pointer transition-all hover:ring-1 hover:ring-primary/60 hover:scale-[1.02] ${isWknd && settings.excludeWeekends ? "opacity-30" : ""} ${isToday ? "ring-2 ring-primary shadow-[0_0_16px_hsl(var(--primary)/0.6)]" : ""}`}
                       onClick={() => setDrillDay(dateStr)}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -209,15 +209,22 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
                       }}
                       onMouseLeave={() => setHoveredDay(null)}
                     >
-                      <span className="text-[10px] text-muted-foreground/80">{day.getDate()}</span>
-                      {data && data.count > 0 && (
-                        <span className="text-[8px] text-foreground/60">{data.count}t</span>
-                      )}
+                      <span className="text-sm font-semibold text-foreground/90 leading-none">{day.getDate()}</span>
+                      {data && data.count > 0 ? (
+                        <div className="w-full flex items-end justify-between">
+                          <span className="text-[9px] uppercase tracking-wide text-foreground/60">{data.count}t</span>
+                          <span className={`text-[10px] font-bold ${mode === "pnl" ? (data.pnl >= 0 ? "text-foreground" : "text-foreground") : "text-foreground"}`}>
+                            {mode === "pnl"
+                              ? `${data.pnl > 0 ? "+" : ""}${data.pnl.toFixed(1)}R`
+                              : `${(data.discipline / Math.max(data.count, 1)).toFixed(1)}`}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
                   );
-                })}
-              </div>
-            ))}
+                })
+              )}
+            </div>
           </div>
       </motion.div>
     );
