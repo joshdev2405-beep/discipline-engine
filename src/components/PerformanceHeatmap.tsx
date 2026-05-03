@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Maximize2, Minimize2, ArrowLeft } from "lucide-react";
 import { Trade } from "@/hooks/use-trades";
 import { useSettings, computeDisciplineScore, isWeekend, type AppSettings } from "@/lib/settings";
-import { useNavigate } from "react-router-dom";
 
 type HeatmapMode = "pnl" | "discipline";
 
@@ -35,7 +34,7 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
   const [mode, setMode] = useState<HeatmapMode>("pnl");
   const [expanded, setExpanded] = useState(false);
   const [hoveredDay, setHoveredDay] = useState<{ date: string; value: number; x: number; y: number } | null>(null);
-  const [drillMonth, setDrillMonth] = useState<number | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [drillDay, setDrillDay] = useState<string | null>(null);
   const { settings } = useSettings();
 
@@ -118,8 +117,8 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
     return { month: m, trades: monthTrades.length, pnl: totalR, discipline: avgDisc };
   });
 
-  // Month drill-down view — rendered as a larger modal
-  const renderMonthDrill = (month: number) => {
+  // In-place month view — swaps the heatmap grid contents
+  const renderMonthInline = (month: number) => {
     const monthDays = getDaysInMonth(year, month);
     const monthWeeks: Date[][] = [];
     let mWeek: Date[] = [];
@@ -147,43 +146,21 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
 
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-md p-6"
-        onClick={() => { setDrillMonth(null); setDrillDay(null); }}
+        key={`month-inline-${month}`}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.18 }}
       >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card-elevated max-w-2xl w-full max-h-[80vh] overflow-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <AnimatePresence mode="wait">
-            {drillDay ? (
-              <motion.div
-                key="day-view"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2 }}
-              >
-                {renderDayDetail(drillDay)}
-              </motion.div>
-            ) : (
-              <motion.div
-                key="month-view"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-lg font-semibold text-foreground">{getMonthLabel(month)} {year}</span>
-                  <button onClick={() => setDrillMonth(null)} className="text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1 border border-border rounded-lg">
-                    ← Back
-                  </button>
-                </div>
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setSelectedMonth(null)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1 border border-border rounded-lg"
+          >
+            <ArrowLeft className="h-3 w-3" /> Year
+          </button>
+          <span className="text-sm font-semibold text-foreground">{getMonthLabel(month)} {year}</span>
+        </div>
 
           {/* Stats row */}
           <div className="grid grid-cols-4 gap-3 mb-6">
@@ -242,16 +219,12 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
               </div>
             ))}
           </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
       </motion.div>
     );
   };
 
-  // Day detail — replaces month grid in-place inside the same modal
-  const renderDayDetail = (dateStr: string) => {
+  // Day detail — popup modal (preserved as user requested)
+  const renderDayDetailModal = (dateStr: string) => {
     const dayTrades = trades.filter((t) => t.date === dateStr);
     const totalR = dayTrades.reduce((s, t) => s + (t.result_r ?? 0), 0);
     const wins = dayTrades.filter((t) => (t.result_r ?? 0) > 0).length;
@@ -261,13 +234,25 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
     const formatted = dateObj.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
     return (
-      <div>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-md p-6"
+        onClick={() => setDrillDay(null)}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card-elevated max-w-2xl w-full max-h-[80vh] overflow-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
         <div className="flex items-center justify-between mb-4">
           <button
             onClick={() => setDrillDay(null)}
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1 border border-border rounded-lg"
           >
-            <ArrowLeft className="h-3 w-3" /> Back to month
+            <ArrowLeft className="h-3 w-3" /> Close
           </button>
           <span className="text-sm font-semibold text-foreground">{formatted}</span>
         </div>
@@ -343,7 +328,8 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
             </div>
           </div>
         )}
-      </div>
+        </motion.div>
+      </motion.div>
     );
   };
 
@@ -379,17 +365,31 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
         </button>
       </div>
 
-      {drillMonth !== null && renderMonthDrill(drillMonth)}
+      {/* Day detail popup — preserved across both views */}
+      <AnimatePresence>
+        {drillDay && renderDayDetailModal(drillDay)}
+      </AnimatePresence>
 
-      {/* Heatmap Grid */}
-      <div className="overflow-x-auto relative">
+      {/* Heatmap content — swaps between year grid and inline month grid */}
+      <AnimatePresence mode="wait">
+        {selectedMonth !== null ? (
+          renderMonthInline(selectedMonth)
+        ) : (
+      <motion.div
+        key="year-view"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.18 }}
+        className="overflow-x-auto relative"
+      >
         <div className="flex gap-0 mb-1 ml-6">
           {monthPositions.map(({ month, weekIndex }) => (
             <span
               key={month}
               className="text-[9px] text-muted-foreground absolute cursor-pointer hover:text-primary transition-colors"
               style={{ left: `${weekIndex * 14 + 24}px` }}
-              onClick={() => setDrillMonth(month)}
+              onClick={() => setSelectedMonth(month)}
             >
               {getMonthLabel(month)}
             </span>
@@ -417,7 +417,7 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
                     key={di}
                     style={getCellStyle(dateStr, day)}
                     className={`w-3 h-3 rounded-[3px] aspect-square cursor-pointer transition-all hover:ring-1 hover:ring-primary/50 ${isWknd && settings.excludeWeekends ? "opacity-20" : ""} ${isToday ? "ring-2 ring-primary shadow-[0_0_8px_hsl(var(--primary)/0.7)]" : ""}`}
-                    onClick={() => { if (day) { setDrillDay(null); setDrillMonth(day.getMonth()); } }}
+                    onClick={() => { if (day) setSelectedMonth(day.getMonth()); }}
                     onMouseEnter={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       setHoveredDay({
@@ -451,10 +451,12 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Monthly Overview (click to drill) */}
-      {expanded && drillMonth === null && (
+      {expanded && selectedMonth === null && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -463,7 +465,7 @@ export default function PerformanceHeatmap({ trades }: { trades: Trade[] }) {
           {monthlySummary.map((m) => (
             <button
               key={m.month}
-              onClick={() => { setDrillDay(null); setDrillMonth(m.month); }}
+              onClick={() => setSelectedMonth(m.month)}
               className={`p-3 rounded-lg border transition-all text-left hover:ring-1 hover:ring-primary/30 ${
                 m.trades > 0
                   ? mode === "pnl"
