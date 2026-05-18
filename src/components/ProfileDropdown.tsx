@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Mail, Globe, Pencil, Check, X, LogOut, Camera, Loader2, Shield } from "lucide-react";
+import { User, Mail, Globe, Pencil, Check, X, LogOut, Camera, Loader2, Shield, UserPlus, Ghost } from "lucide-react";
 import { useProfile, getRankInfo } from "@/hooks/use-profile";
 import { useAuth } from "@/components/AuthProvider";
 import { useOperatorMode } from "@/lib/operator-mode";
@@ -18,6 +18,10 @@ export default function ProfileDropdown() {
   const [username, setUsername] = useState("");
   const [continent, setContinent] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
+  const [upgradeEmail, setUpgradeEmail] = useState("");
+  const [upgradePassword, setUpgradePassword] = useState("");
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -35,6 +39,8 @@ export default function ProfileDropdown() {
   }, [open]);
 
   if (!profile) return null;
+
+  const isGuest = profile.is_guest === true || (user as any)?.is_anonymous === true;
 
   const handleEdit = () => {
     setUsername(profile.username);
@@ -58,6 +64,17 @@ export default function ProfileDropdown() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
+    if (isGuest) {
+      e.target.value = "";
+      toast("Profile photos require a full account", {
+        action: {
+          label: "Sign Up",
+          onClick: () => setUpgrading(true),
+        },
+      });
+      return;
+    }
+
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();
@@ -76,6 +93,29 @@ export default function ProfileDropdown() {
       toast.error("Upload failed", { description: err.message });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleUpgrade = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setUpgradeLoading(true);
+    try {
+      const { error: updateErr } = await supabase.auth.updateUser({
+        email: upgradeEmail,
+        password: upgradePassword,
+      });
+      if (updateErr) throw updateErr;
+      const sb = supabase as any;
+      await sb.from("profiles").update({ is_guest: false, updated_at: new Date().toISOString() }).eq("user_id", user.id);
+      toast.success("Account upgraded. Check your email to verify.");
+      setUpgrading(false);
+      setUpgradeEmail("");
+      setUpgradePassword("");
+    } catch (err: any) {
+      toast.error("Upgrade failed", { description: err.message });
+    } finally {
+      setUpgradeLoading(false);
     }
   };
 
@@ -135,10 +175,17 @@ export default function ProfileDropdown() {
                       autoFocus
                     />
                   ) : (
-                    <p className="text-sm font-semibold text-foreground truncate">{profile.username}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-foreground truncate">{profile.username}</p>
+                      {isGuest && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                          <Ghost className="h-2.5 w-2.5" /> Guest
+                        </span>
+                      )}
+                    </div>
                   )}
                   <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
-                    <Mail className="h-2.5 w-2.5" /> {user?.email}
+                    <Mail className="h-2.5 w-2.5" /> {user?.email || (isGuest ? "Guest mode — no email" : "")}
                   </p>
                 </div>
                 {!editing ? (
@@ -192,6 +239,48 @@ export default function ProfileDropdown() {
               )}
 
               <div className="border-t border-border pt-3 space-y-1">
+                {isGuest && (
+                  upgrading ? (
+                    <form onSubmit={handleUpgrade} className="space-y-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                      <p className="text-[10px] uppercase tracking-widest text-amber-500 flex items-center gap-1">
+                        <UserPlus className="h-3 w-3" /> Upgrade Account
+                      </p>
+                      <input
+                        type="email"
+                        required
+                        placeholder="Email"
+                        value={upgradeEmail}
+                        onChange={(e) => setUpgradeEmail(e.target.value)}
+                        className="w-full bg-muted/50 border border-border rounded px-2 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                      />
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        placeholder="Password"
+                        value={upgradePassword}
+                        onChange={(e) => setUpgradePassword(e.target.value)}
+                        className="w-full bg-muted/50 border border-border rounded px-2 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
+                      />
+                      <div className="flex gap-1.5">
+                        <button type="submit" disabled={upgradeLoading} className="flex-1 py-1.5 text-[11px] font-semibold bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:opacity-50">
+                          {upgradeLoading ? "Upgrading..." : "Upgrade"}
+                        </button>
+                        <button type="button" onClick={() => setUpgrading(false)} className="px-2 py-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <button
+                      onClick={() => setUpgrading(true)}
+                      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-amber-500 hover:bg-amber-500/10 transition-colors"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      Upgrade Account
+                    </button>
+                  )
+                )}
                 {isAdmin && (
                   <div className="flex items-center justify-between px-3 py-2">
                     <div className="flex items-center gap-2">

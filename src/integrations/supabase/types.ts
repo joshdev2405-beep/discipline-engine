@@ -69,6 +69,7 @@ export type Database = {
           created_at: string
           current_streak: number
           id: string
+          is_guest: boolean
           last_login_date: string | null
           longest_streak: number
           total_xp: number
@@ -82,6 +83,7 @@ export type Database = {
           created_at?: string
           current_streak?: number
           id?: string
+          is_guest?: boolean
           last_login_date?: string | null
           longest_streak?: number
           total_xp?: number
@@ -95,6 +97,7 @@ export type Database = {
           created_at?: string
           current_streak?: number
           id?: string
+          is_guest?: boolean
           last_login_date?: string | null
           longest_streak?: number
           total_xp?: number

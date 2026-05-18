@@ -13,6 +13,7 @@ export interface Profile {
   current_streak: number;
   longest_streak: number;
   last_login_date: string | null;
+  is_guest: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -55,9 +56,16 @@ export function useProfile() {
       const sb = supabase as any;
       let { data, error } = await sb.from("profiles").select("*").eq("user_id", user!.id).maybeSingle();
       if (!data && !error) {
+        const isAnon = (user as any)?.is_anonymous === true;
         const { data: newProfile, error: insertError } = await sb
           .from("profiles")
-          .insert({ user_id: user!.id, username: `Operator-${Math.floor(Math.random() * 9000 + 100)}` })
+          .insert({
+            user_id: user!.id,
+            username: isAnon
+              ? `Guest-${Math.floor(Math.random() * 9000 + 100)}`
+              : `Operator-${Math.floor(Math.random() * 9000 + 100)}`,
+            is_guest: isAnon,
+          })
           .select().single();
         if (insertError) throw insertError;
         data = newProfile;
