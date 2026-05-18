@@ -31,6 +31,19 @@ export default function Auth() {
     }
   };
 
+  const handleGuest = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInAnonymously();
+      if (error) throw error;
+      toast.success("Entered as Guest. Upgrade anytime to keep your data.");
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4 terminal-grid">
       <motion.div
@@ -83,6 +96,15 @@ export default function Auth() {
             className="w-full py-2.5 text-xs font-semibold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
           >
             {loading ? "Processing..." : isLogin ? "Sign In" : "Sign Up"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleGuest}
+            disabled={loading}
+            className="w-full py-2 text-[11px] font-medium text-muted-foreground bg-transparent border border-border/60 rounded-lg hover:text-foreground hover:border-border transition-colors disabled:opacity-50"
+          >
+            Continue as Guest
           </button>
 
           <p className="text-center text-xs text-muted-foreground">
