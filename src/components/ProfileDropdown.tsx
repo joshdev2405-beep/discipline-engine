@@ -38,6 +38,16 @@ export default function ProfileDropdown() {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  // Listen for global "open upgrade form" event (from guest banner)
+  useEffect(() => {
+    const handler = () => {
+      setOpen(true);
+      setUpgrading(true);
+    };
+    window.addEventListener("open-upgrade-account", handler);
+    return () => window.removeEventListener("open-upgrade-account", handler);
+  }, []);
+
   if (!profile) return null;
 
   const isGuest = profile.is_guest === true || (user as any)?.is_anonymous === true;
