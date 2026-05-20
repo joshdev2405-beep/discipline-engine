@@ -35,6 +35,33 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback: {
+        Row: {
+          app_version: string | null
+          category: string
+          created_at: string
+          id: string
+          message: string
+          user_id: string
+        }
+        Insert: {
+          app_version?: string | null
+          category: string
+          created_at?: string
+          id?: string
+          message: string
+          user_id: string
+        }
+        Update: {
+          app_version?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          message?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mood_logs: {
         Row: {
           created_at: string
