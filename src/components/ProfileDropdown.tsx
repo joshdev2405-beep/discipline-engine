@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Mail, Globe, Pencil, Check, X, LogOut, Camera, Loader2, Shield, UserPlus, Ghost, Inbox, PlayCircle } from "lucide-react";
 import { useProfile, getRankInfo } from "@/hooks/use-profile";
