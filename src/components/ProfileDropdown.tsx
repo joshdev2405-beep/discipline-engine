@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Mail, Globe, Pencil, Check, X, LogOut, Camera, Loader2, Shield, UserPlus, Ghost, Inbox } from "lucide-react";
+import { User, Mail, Globe, Pencil, Check, X, LogOut, Camera, Loader2, Shield, UserPlus, Ghost, Inbox, PlayCircle } from "lucide-react";
 import { useProfile, getRankInfo } from "@/hooks/use-profile";
 import { useAuth } from "@/components/AuthProvider";
 import { useOperatorMode } from "@/lib/operator-mode";
@@ -15,6 +15,7 @@ export default function ProfileDropdown() {
   const { user, signOut } = useAuth();
   const { isAdmin, operatorMode, setOperatorMode } = useOperatorMode(user?.email);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [username, setUsername] = useState("");
@@ -313,6 +314,21 @@ export default function ProfileDropdown() {
                     Feedback Inbox
                   </button>
                 )}
+                <button
+                  onClick={async () => {
+                    setOpen(false);
+                    if (user) {
+                      const sb = supabase as any;
+                      await sb.from("profiles").update({ has_completed_onboarding: false, updated_at: new Date().toISOString() }).eq("user_id", user.id);
+                      queryClient.invalidateQueries({ queryKey: ["profile"] });
+                    }
+                    window.dispatchEvent(new CustomEvent("replay-onboarding"));
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <PlayCircle className="h-4 w-4" />
+                  Replay Tutorial
+                </button>
                 {isAdmin && (
                   <div className="flex items-center justify-between px-3 py-2">
                     <div className="flex items-center gap-2">
