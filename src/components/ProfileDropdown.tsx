@@ -305,6 +305,15 @@ export default function ProfileDropdown() {
                   )
                 )}
                 {isAdmin && (
+                  <button
+                    onClick={() => { setOpen(false); navigate("/feedback-inbox"); }}
+                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                  >
+                    <Inbox className="h-4 w-4" />
+                    Feedback Inbox
+                  </button>
+                )}
+                {isAdmin && (
                   <div className="flex items-center justify-between px-3 py-2">
                     <div className="flex items-center gap-2">
                       <Shield className="h-4 w-4 text-amber-500/80" />
