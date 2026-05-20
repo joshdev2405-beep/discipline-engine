@@ -15,6 +15,7 @@ import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import Vault from "./pages/Vault";
 import Leaderboard from "./pages/Leaderboard";
+import FeedbackInbox from "./pages/FeedbackInbox";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +51,7 @@ function AppContent() {
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/feedback-inbox" element={<FeedbackInbox />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
