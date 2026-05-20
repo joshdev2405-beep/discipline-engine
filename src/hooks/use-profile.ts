@@ -14,6 +14,7 @@ export interface Profile {
   longest_streak: number;
   last_login_date: string | null;
   is_guest: boolean;
+  has_completed_onboarding: boolean;
   created_at: string;
   updated_at: string;
 }

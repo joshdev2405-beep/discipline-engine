@@ -95,6 +95,7 @@ export type Database = {
           continent: string | null
           created_at: string
           current_streak: number
+          has_completed_onboarding: boolean
           id: string
           is_guest: boolean
           last_login_date: string | null
@@ -109,6 +110,7 @@ export type Database = {
           continent?: string | null
           created_at?: string
           current_streak?: number
+          has_completed_onboarding?: boolean
           id?: string
           is_guest?: boolean
           last_login_date?: string | null
@@ -123,6 +125,7 @@ export type Database = {
           continent?: string | null
           created_at?: string
           current_streak?: number
+          has_completed_onboarding?: boolean
           id?: string
           is_guest?: boolean
           last_login_date?: string | null

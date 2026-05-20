@@ -198,7 +198,7 @@ export default function Dashboard() {
       <BetaFeedbackWidget />
 
       {/* Discipline Scores Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div data-onboarding="discipline" className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <DisciplineScore label="Today" score={today.discipline} trades={today.total} wins={today.wins} />
         <DisciplineScore label="Last 7 Days" score={week.discipline} trades={week.total} wins={week.wins} />
         <DisciplineScore label="All Time" score={allTime.discipline} trades={allTime.total} wins={allTime.wins} />
