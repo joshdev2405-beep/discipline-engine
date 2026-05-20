@@ -8,6 +8,7 @@ import { useOperatorMode } from "@/lib/operator-mode";
 import RankProgression from "@/components/RankProgression";
 import XPSystemInfo from "@/components/XPSystemInfo";
 import ProfileDropdown from "@/components/ProfileDropdown";
+import OnboardingWalkthrough from "@/components/OnboardingWalkthrough";
 import {
   Sidebar,
   SidebarContent,
@@ -184,6 +185,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+      <OnboardingWalkthrough />
     </SidebarProvider>
   );
 }
