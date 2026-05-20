@@ -33,6 +33,16 @@ const STEPS: Step[] = [
     title: "The Vault",
     body: "Attach before/after screenshots to each trade for a visual audit trail.",
   },
+  {
+    selector: '[data-onboarding="nav-analytics"]',
+    title: "Analytics",
+    body: "Track your performance over time. Customise each widget to show the metrics that matter most to you.",
+  },
+  {
+    selector: '[data-onboarding="nav-leaderboard"]',
+    title: "Leaderboard",
+    body: "See how your discipline stacks up globally. Earn XP to climb the ranks.",
+  },
 ];
 
 const PADDING = 8;
