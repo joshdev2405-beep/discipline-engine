@@ -170,7 +170,18 @@ export default function ProfileDropdown() {
                     </div>
                   )}
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => {
+                      if (isGuest) {
+                        toast("Profile photos require a full account", {
+                          action: {
+                            label: "Sign Up",
+                            onClick: () => setUpgrading(true),
+                          },
+                        });
+                        return;
+                      }
+                      fileInputRef.current?.click();
+                    }}
                     className="absolute inset-0 flex items-center justify-center rounded-full bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     {uploading ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Camera className="h-4 w-4 text-primary" />}
