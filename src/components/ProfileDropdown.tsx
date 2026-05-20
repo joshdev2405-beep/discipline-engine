@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Mail, Globe, Pencil, Check, X, LogOut, Camera, Loader2, Shield, UserPlus, Ghost } from "lucide-react";
+import { User, Mail, Globe, Pencil, Check, X, LogOut, Camera, Loader2, Shield, UserPlus, Ghost, Inbox } from "lucide-react";
 import { useProfile, getRankInfo } from "@/hooks/use-profile";
 import { useAuth } from "@/components/AuthProvider";
 import { useOperatorMode } from "@/lib/operator-mode";
@@ -13,6 +14,7 @@ export default function ProfileDropdown() {
   const { profile, updateProfile, rankInfo } = useProfile();
   const { user, signOut } = useAuth();
   const { isAdmin, operatorMode, setOperatorMode } = useOperatorMode(user?.email);
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [username, setUsername] = useState("");
