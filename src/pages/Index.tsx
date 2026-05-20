@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import DisciplineScore from "@/components/DisciplineScore";
 import GaugeChart from "@/components/GaugeChart";
 import PerformanceHeatmap from "@/components/PerformanceHeatmap";
+import BetaFeedbackWidget from "@/components/BetaFeedbackWidget";
 import { useTrades, Trade } from "@/hooks/use-trades";
 import { MOOD_LABELS } from "@/lib/types";
 import { useSettings, computeDisciplineScore, computeRuleStreak } from "@/lib/settings";
@@ -192,6 +193,9 @@ export default function Dashboard() {
 
       {/* Performance Heatmap */}
       <PerformanceHeatmap trades={closedTrades} />
+
+      {/* Beta Feedback Widget */}
+      <BetaFeedbackWidget />
 
       {/* Discipline Scores Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
