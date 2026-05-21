@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { SignedImage } from "@/components/SignedImage";
 
 type Trade = {
   id: string; user_id: string; date: string; start_date: string; end_date: string;
