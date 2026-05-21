@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { SignedImage } from "@/components/SignedImage";
 
 type Trade = {
   id: string; user_id: string; date: string; start_date: string; end_date: string;
@@ -112,7 +113,7 @@ function TradeRow({ trade, tags, onEdit, onDelete }: { trade: Trade; tags: Trade
                   ].map(({ lbl, url }) => (
                     <div key={lbl} className="border border-dashed border-border/50 rounded-lg h-24 flex flex-col items-center justify-center bg-muted/20 overflow-hidden">
                       {url ? (
-                        <img src={url} alt={lbl} className="w-full h-full object-cover rounded-lg" />
+                        <SignedImage storedUrl={url} alt={lbl} className="w-full h-full object-cover rounded-lg" />
                       ) : (
                         <>
                           <Image className="h-4 w-4 text-muted-foreground mb-1" />
@@ -376,7 +377,11 @@ function ScreenshotUploader({ label, file, onFileChange, previewUrl, isMandatory
       >
         {previewUrl ? (
           <>
-            <img src={previewUrl} alt={label} className="absolute inset-0 w-full h-full object-cover rounded-lg opacity-80" />
+            {previewUrl.startsWith("blob:") || previewUrl.startsWith("data:") ? (
+              <img src={previewUrl} alt={label} className="absolute inset-0 w-full h-full object-cover rounded-lg opacity-80" />
+            ) : (
+              <SignedImage storedUrl={previewUrl} alt={label} className="absolute inset-0 w-full h-full object-cover rounded-lg opacity-80" />
+            )}
             <div className="absolute inset-0 bg-background/40 flex items-center justify-center">
               <Upload className="h-4 w-4 text-primary" />
             </div>
@@ -459,8 +464,8 @@ function TradeEntryForm({ onClose, onSuccess, editTrade, editTags }: {
     const path = `${user.id}/${tradeId}_${type}.${ext}`;
     const { error } = await supabase.storage.from("trade-screenshots").upload(path, file, { upsert: true });
     if (error) { console.error("Upload error:", error); return null; }
-    const { data } = supabase.storage.from("trade-screenshots").getPublicUrl(path);
-    return data.publicUrl;
+    // Bucket is private — store the path; resolve to signed URL at render time.
+    return path;
   };
 
   /** Check XP cap: max 2 trades per day get XP */
