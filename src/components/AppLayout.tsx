@@ -139,6 +139,23 @@ function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Mobile App CTA */}
+        <div className={`mt-auto px-4 pt-2 ${collapsed ? "px-2" : ""}`}>
+          <button
+            onClick={() => setMobileModalOpen(true)}
+            className={`flex items-center gap-2.5 w-full rounded-lg transition-colors overflow-hidden whitespace-nowrap ${
+              collapsed
+                ? "justify-center py-2 text-sidebar-foreground hover:text-primary"
+                : "px-3 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+            }`}
+          >
+            <Smartphone className="h-4 w-4 shrink-0" />
+            {!collapsed && <span>Get the Mobile App</span>}
+          </button>
+        </div>
+
+        <MobileAppModal open={mobileModalOpen} onClose={() => setMobileModalOpen(false)} />
       </SidebarContent>
     </Sidebar>
   );
