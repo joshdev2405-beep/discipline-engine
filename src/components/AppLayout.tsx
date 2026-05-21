@@ -38,6 +38,7 @@ function AppSidebar() {
   const collapsed = state === "collapsed";
   const [rankOpen, setRankOpen] = useState(false);
   const [xpInfoOpen, setXpInfoOpen] = useState(false);
+  const [mobileModalOpen, setMobileModalOpen] = useState(false);
   const { profile, rankInfo } = useProfile();
   const { user } = useAuth();
   const { operatorMode } = useOperatorMode(user?.email);
