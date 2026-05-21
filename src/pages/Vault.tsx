@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Image, X, Calendar, Hash, Loader2 } from "lucide-react";
 import { useTrades, Trade } from "@/hooks/use-trades";
+import { SignedImage } from "@/components/SignedImage";
 
 interface VaultPhoto {
   tradeId: string;
@@ -58,8 +59,8 @@ function Lightbox({ photo, onClose }: { photo: VaultPhoto; onClose: () => void }
         className="max-w-4xl max-h-[85vh] w-full mx-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <img
-          src={photo.url}
+        <SignedImage
+          storedUrl={photo.url}
           alt={`${photo.type} screenshot for ${photo.symbol}`}
           className="w-full h-full object-contain rounded-xl border border-border/50"
         />
@@ -131,8 +132,8 @@ export default function Vault() {
               onClick={() => setSelectedPhoto(photo)}
               className="glass-card group relative overflow-hidden aspect-[4/3] flex flex-col items-center justify-center hover:border-primary/30 transition-all cursor-pointer p-0"
             >
-              <img
-                src={photo.url}
+              <SignedImage
+                storedUrl={photo.url}
                 alt={`${photo.type} — ${photo.symbol}`}
                 className="absolute inset-0 w-full h-full object-cover rounded-[inherit] opacity-90 group-hover:opacity-100 transition-opacity"
               />
