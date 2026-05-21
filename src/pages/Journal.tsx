@@ -459,8 +459,8 @@ function TradeEntryForm({ onClose, onSuccess, editTrade, editTags }: {
     const path = `${user.id}/${tradeId}_${type}.${ext}`;
     const { error } = await supabase.storage.from("trade-screenshots").upload(path, file, { upsert: true });
     if (error) { console.error("Upload error:", error); return null; }
-    const { data } = supabase.storage.from("trade-screenshots").getPublicUrl(path);
-    return data.publicUrl;
+    // Bucket is private — store the path; resolve to signed URL at render time.
+    return path;
   };
 
   /** Check XP cap: max 2 trades per day get XP */
