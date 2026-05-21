@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, BookOpen, BarChart3, Settings, ImageIcon, Trophy, Zap, X, UserPlus, Ghost } from "lucide-react";
+import { LayoutDashboard, BookOpen, BarChart3, Settings, ImageIcon, Trophy, Zap, X, UserPlus, Ghost, Smartphone } from "lucide-react";
 import logo from "@/assets/logo-new.jpeg";
 import { useProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/components/AuthProvider";
@@ -9,6 +9,7 @@ import RankProgression from "@/components/RankProgression";
 import XPSystemInfo from "@/components/XPSystemInfo";
 import ProfileDropdown from "@/components/ProfileDropdown";
 import OnboardingWalkthrough from "@/components/OnboardingWalkthrough";
+import MobileAppModal from "@/components/MobileAppModal";
 import {
   Sidebar,
   SidebarContent,
