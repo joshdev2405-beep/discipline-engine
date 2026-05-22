@@ -331,6 +331,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin: { Args: never; Returns: boolean }
       record_daily_login: {
         Args: never
         Returns: {
