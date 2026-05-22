@@ -1,6 +1,6 @@
 import { create } from "zustand";
-
-const ADMIN_EMAIL = "rojosh2405@gmail.com";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface OperatorModeStore {
   enabled: boolean;
@@ -12,14 +12,29 @@ export const useOperatorModeStore = create<OperatorModeStore>((set) => ({
   setEnabled: (v) => set({ enabled: v }),
 }));
 
-export function isAdmin(email: string | undefined | null): boolean {
-  return !!email && email.toLowerCase() === ADMIN_EMAIL;
+/**
+ * Server-verified admin check. Calls the `is_admin()` RPC which wraps
+ * `has_role(auth.uid(), 'admin')` so privileged identity never leaks
+ * to the client bundle.
+ */
+export function useIsAdmin(userId: string | undefined | null) {
+  const { data } = useQuery({
+    queryKey: ["is_admin", userId],
+    queryFn: async () => {
+      const sb = supabase as any;
+      const { data, error } = await sb.rpc("is_admin");
+      if (error) return false;
+      return !!data;
+    },
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+  });
+  return !!data;
 }
 
-export function useOperatorMode(email: string | undefined | null) {
+export function useOperatorMode(userId: string | undefined | null) {
   const { enabled, setEnabled } = useOperatorModeStore();
-  const admin = isAdmin(email);
-  // Safety: if not admin or no email, always false
+  const admin = useIsAdmin(userId);
   return {
     isAdmin: admin,
     operatorMode: admin && enabled,
