@@ -89,26 +89,8 @@ export function useProfile() {
     const sb = supabase as any;
 
     try {
-      const { error: loginError } = await sb.from("daily_logins").insert({ user_id: user.id, login_date: today }).select().single();
-      if (loginError && !loginError.message.includes("duplicate")) throw loginError;
-      if (loginError) return;
-
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().slice(0, 10);
-      const newStreak = profile.last_login_date === yesterdayStr ? (profile.current_streak || 0) + 1 : 1;
-      const multiplier = getStreakMultiplier(newStreak);
-      const xpGain = Math.round(10 * multiplier);
-
-      await sb.from("xp_events").insert({ user_id: user.id, event_type: "daily_login", xp_amount: xpGain, multiplier });
-      await sb.from("profiles").update({
-        last_login_date: today,
-        current_streak: newStreak,
-        longest_streak: Math.max(newStreak, profile.longest_streak || 0),
-        total_xp: (profile.total_xp || 0) + xpGain,
-        updated_at: new Date().toISOString(),
-      }).eq("user_id", user.id);
-
+      const { error } = await sb.rpc("record_daily_login");
+      if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["profile"] });
     } catch (err) {
       console.error("Login tracking error:", err);
@@ -127,13 +109,13 @@ export function useProfile() {
   const awardXP = async (eventType: string, baseXP: number) => {
     if (!user || !profile) return;
     const sb = supabase as any;
-    const multiplier = getStreakMultiplier(profile.current_streak);
-    const xpGain = Math.round(baseXP * multiplier);
-
-    await sb.from("xp_events").insert({ user_id: user.id, event_type: eventType, xp_amount: xpGain, multiplier });
-    await sb.from("profiles").update({ total_xp: profile.total_xp + xpGain, updated_at: new Date().toISOString() }).eq("user_id", user.id);
+    const { data, error } = await sb.rpc("award_xp", { _event_type: eventType, _base_xp: baseXP });
+    if (error) {
+      console.error("award_xp error:", error);
+      return;
+    }
     queryClient.invalidateQueries({ queryKey: ["profile"] });
-    return xpGain;
+    return data as number;
   };
 
   const rankInfo = getRankInfo(profile?.total_xp || 0);
