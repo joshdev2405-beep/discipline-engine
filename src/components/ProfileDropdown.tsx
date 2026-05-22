@@ -14,7 +14,7 @@ const CONTINENTS = ["Global", "North America", "South America", "Europe", "Asia"
 export default function ProfileDropdown() {
   const { profile, updateProfile, rankInfo } = useProfile();
   const { user, signOut } = useAuth();
-  const { isAdmin, operatorMode, setOperatorMode } = useOperatorMode(user?.email);
+  const { isAdmin, operatorMode, setOperatorMode } = useOperatorMode(user?.id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);

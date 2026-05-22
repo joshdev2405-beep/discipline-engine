@@ -4,7 +4,6 @@ import { Settings as SettingsIcon, RotateCcw, Target, Plus, Trash2, BookOpen, Li
 import { useSettings, MANDATORY_FIELD_LABELS, type MandatoryField, type TradeRowMetric, getTradingDaysInMonth } from "@/lib/settings";
 import { useConditions, type Condition } from "@/lib/conditions";
 import { useAuth } from "@/components/AuthProvider";
-import { isAdmin } from "@/lib/operator-mode";
 import { useOperatorMode } from "@/lib/operator-mode";
 import { injectMockTrades } from "@/lib/mock-data";
 import { toast } from "sonner";
@@ -18,7 +17,7 @@ export default function Settings() {
   const { settings, updateSettings, setDailyCap, updateTradeRow, updateMetric, addMetric, removeMetric, toggleMandatoryField, resetSettings, syncTargets } = useSettings();
   const { conditions } = useConditions();
   const { user } = useAuth();
-  const { operatorMode } = useOperatorMode(user?.email);
+  const { operatorMode } = useOperatorMode(user?.id);
   const queryClient = useQueryClient();
   const [injecting, setInjecting] = useState(false);
 

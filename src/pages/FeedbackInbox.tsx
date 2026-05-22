@@ -4,9 +4,7 @@ import { motion } from "framer-motion";
 import { Inbox, ArrowLeft, Loader2, Bug, Sparkles, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
-import { isAdmin } from "@/lib/operator-mode";
-
-const ADMIN_EMAIL = "rojosh2405@gmail.com";
+import { useIsAdmin } from "@/lib/operator-mode";
 
 type FeedbackRow = {
   id: string;
@@ -38,12 +36,12 @@ export default function FeedbackInbox() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<(typeof CATEGORIES)[number]>("All");
 
-  const allowed = isAdmin(user?.email);
+  const allowed = useIsAdmin(user?.id);
 
   useEffect(() => {
     if (!user) return;
-    // Hard guard: bail out if not admin email — never query.
-    if (user.email?.toLowerCase() !== ADMIN_EMAIL) {
+    // Hard guard: bail out unless server confirms admin role — never query.
+    if (!allowed) {
       setLoading(false);
       return;
     }
@@ -56,7 +54,7 @@ export default function FeedbackInbox() {
       if (!error && data) setRows(data as FeedbackRow[]);
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, allowed]);
 
   const filtered = useMemo(
     () => (filter === "All" ? rows : rows.filter((r) => r.category === filter)),
