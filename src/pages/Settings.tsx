@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings as SettingsIcon, RotateCcw, Target, Plus, Trash2, BookOpen, ListChecks, Calendar, History, Database, Loader2 } from "lucide-react";
+import { Settings as SettingsIcon, RotateCcw, Target, Plus, Trash2, BookOpen, ListChecks, Calendar, History, Database, Loader2, Info } from "lucide-react";
 import { useSettings, MANDATORY_FIELD_LABELS, type MandatoryField, type TradeRowMetric, getTradingDaysInMonth } from "@/lib/settings";
 import { useConditions, type Condition } from "@/lib/conditions";
 import { useAuth } from "@/components/AuthProvider";
@@ -122,6 +122,15 @@ export default function Settings() {
           <div className="flex items-center gap-2">
             <Target className="h-4 w-4 text-primary" />
             <span className="stat-label text-primary">Point Allocation Grid</span>
+            <div className="group relative">
+              <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors" />
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-3 rounded-lg bg-popover border border-border shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Each trade's points are multiplied by its decay factor before contributing to your daily discipline score. For example, Trade #2 with a 0.8× decay contributes only 80% of its raw points.
+                </p>
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 bg-popover border-r border-b border-border rotate-45" />
+              </div>
+            </div>
           </div>
           <span className="text-[10px] text-muted-foreground">{settings.dailyCap} trade rows</span>
         </div>
