@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings as SettingsIcon, RotateCcw, Target, Plus, Trash2, BookOpen, ListChecks, Calendar, History, Database, Loader2 } from "lucide-react";
+import { Settings as SettingsIcon, RotateCcw, Target, Plus, Trash2, BookOpen, ListChecks, Calendar, History, Database, Loader2, Info } from "lucide-react";
 import { useSettings, MANDATORY_FIELD_LABELS, type MandatoryField, type TradeRowMetric, getTradingDaysInMonth } from "@/lib/settings";
 import { useConditions, type Condition } from "@/lib/conditions";
 import { useAuth } from "@/components/AuthProvider";
