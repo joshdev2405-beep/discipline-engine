@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, X, Loader2, Send } from "lucide-react";
+import { MessageSquare, X, Loader2, Send, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
@@ -16,6 +16,30 @@ export default function BetaFeedbackWidget() {
   const [category, setCategory] = useState("General");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [image, setImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5MB.");
+      return;
+    }
+    setImage(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const clearImage = () => {
+    setImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleSubmit = async () => {
     if (!user) return;
@@ -24,20 +48,47 @@ export default function BetaFeedbackWidget() {
       return;
     }
     setSubmitting(true);
-    const { error } = await supabase.from("feedback").insert({
-      user_id: user.id,
-      category,
-      message: message.trim(),
-      app_version: APP_VERSION,
-    });
-    setSubmitting(false);
-    if (error) {
+    const { data: inserted, error } = await supabase
+      .from("feedback")
+      .insert({
+        user_id: user.id,
+        category,
+        message: message.trim(),
+        app_version: APP_VERSION,
+      })
+      .select("id")
+      .single();
+
+    if (error || !inserted) {
+      setSubmitting(false);
       toast.error("Could not send feedback. Try again.");
       return;
     }
+
+    // Optional image upload
+    if (image) {
+      const ext = image.name.split(".").pop() || "png";
+      const path = `${user.id}/${inserted.id}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("feedback-images")
+        .upload(path, image, { upsert: true, contentType: image.type });
+      if (upErr) {
+        console.error("Image upload failed:", upErr);
+        toast.error("Feedback saved, but image upload failed.");
+      } else {
+        await supabase.from("feedback").update({ image_url: path }).eq("id", inserted.id);
+      }
+    }
+
+    // Fire confirmation email (silent on failure)
+    supabase.functions.invoke("send-feedback-email", { body: { feedback_id: inserted.id } })
+      .catch((e) => console.error("Email invoke failed:", e));
+
+    setSubmitting(false);
     toast.success("Feedback received. Thank you for shaping the build.");
     setMessage("");
     setCategory("General");
+    clearImage();
     setDismissed(true);
   };
 
@@ -83,6 +134,32 @@ export default function BetaFeedbackWidget() {
               className="w-full resize-none rounded-md bg-background/40 border border-border/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/60 focus:bg-background/60 transition-colors"
             />
 
+            {imagePreview && (
+              <div className="relative inline-block">
+                <img
+                  src={imagePreview}
+                  alt="Attachment preview"
+                  className="max-h-24 rounded-md border border-border/60"
+                />
+                <button
+                  onClick={clearImage}
+                  className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full bg-background border border-border text-muted-foreground hover:text-foreground"
+                  aria-label="Remove image"
+                  type="button"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+
             <div className="flex items-center gap-2">
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger className="h-8 text-xs bg-background/40 border-border/60 w-[160px]">
@@ -94,6 +171,16 @@ export default function BetaFeedbackWidget() {
                   <SelectItem value="General">💬 General</SelectItem>
                 </SelectContent>
               </Select>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-2.5 h-8 rounded-md text-xs font-medium bg-background/40 text-muted-foreground border border-border/60 hover:text-foreground hover:border-primary/40 transition-colors"
+                title="Attach screenshot (optional)"
+              >
+                <ImagePlus className="h-3.5 w-3.5" />
+                {image ? "Change" : "Attach"}
+              </button>
 
               <button
                 onClick={handleSubmit}
