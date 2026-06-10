@@ -41,6 +41,7 @@ export type Database = {
           category: string
           created_at: string
           id: string
+          image_url: string | null
           message: string
           user_id: string
         }
@@ -49,6 +50,7 @@ export type Database = {
           category: string
           created_at?: string
           id?: string
+          image_url?: string | null
           message: string
           user_id: string
         }
@@ -57,6 +59,7 @@ export type Database = {
           category?: string
           created_at?: string
           id?: string
+          image_url?: string | null
           message?: string
           user_id?: string
         }
