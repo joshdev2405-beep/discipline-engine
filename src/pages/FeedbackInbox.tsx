@@ -5,6 +5,8 @@ import { Inbox, ArrowLeft, Loader2, Bug, Sparkles, MessageCircle } from "lucide-
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { useIsAdmin } from "@/lib/operator-mode";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+
 
 type FeedbackRow = {
   id: string;
@@ -12,6 +14,7 @@ type FeedbackRow = {
   category: string;
   message: string;
   app_version: string | null;
+  image_url: string | null;
   created_at: string;
 };
 
@@ -29,12 +32,48 @@ function categoryClass(c: string) {
   return "bg-muted/40 text-muted-foreground border-border";
 }
 
+function FeedbackThumbnail({ path, onClick }: { path: string; onClick: (url: string) => void }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.storage
+      .from("feedback-images")
+      .createSignedUrl(path, 3600)
+      .then(({ data, error }) => {
+        if (!cancelled) {
+          if (error) console.error("Signed URL error:", error);
+          else if (data) setUrl(data.signedUrl);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [path]);
+
+  if (!url) return null;
+
+  return (
+    <button
+      onClick={() => onClick(url)}
+      className="relative mt-2 mb-1 group"
+      aria-label="View attached image"
+    >
+      <img
+        src={url}
+        alt="Feedback attachment"
+        className="h-16 w-auto rounded-md border border-border/60 object-cover transition-transform group-hover:scale-[1.02]"
+      />
+      <div className="absolute inset-0 rounded-md ring-1 ring-inset ring-black/5 group-hover:ring-primary/40 transition-colors" />
+    </button>
+  );
+}
+
 export default function FeedbackInbox() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [rows, setRows] = useState<FeedbackRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<(typeof CATEGORIES)[number]>("All");
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const allowed = useIsAdmin(user?.id);
 
@@ -144,6 +183,12 @@ export default function FeedbackInbox() {
               <p className="relative text-sm text-foreground whitespace-pre-wrap leading-relaxed mb-3">
                 {row.message}
               </p>
+              {row.image_url && (
+                <FeedbackThumbnail
+                  path={row.image_url}
+                  onClick={(url) => setLightboxUrl(url)}
+                />
+              )}
               <div className="relative flex items-center justify-between text-[10px] text-muted-foreground border-t border-border/40 pt-2">
                 <span className="font-mono truncate" title={row.user_id}>
                   user: {row.user_id}
@@ -156,6 +201,19 @@ export default function FeedbackInbox() {
           ))}
         </div>
       )}
+
+      <Dialog open={!!lightboxUrl} onOpenChange={(open) => !open && setLightboxUrl(null)}>
+        <DialogContent className="max-w-3xl p-2 bg-background/95 backdrop-blur-sm border-border/60">
+          <DialogTitle className="sr-only">Feedback attachment</DialogTitle>
+          {lightboxUrl && (
+            <img
+              src={lightboxUrl}
+              alt="Feedback attachment full view"
+              className="w-full h-auto rounded-md"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
