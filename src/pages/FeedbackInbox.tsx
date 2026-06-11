@@ -73,6 +73,7 @@ export default function FeedbackInbox() {
   const [rows, setRows] = useState<FeedbackRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<(typeof CATEGORIES)[number]>("All");
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const allowed = useIsAdmin(user?.id);
 
