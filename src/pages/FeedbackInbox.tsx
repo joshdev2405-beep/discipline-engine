@@ -32,7 +32,40 @@ function categoryClass(c: string) {
   return "bg-muted/40 text-muted-foreground border-border";
 }
 
-export default function FeedbackInbox() {
+function FeedbackThumbnail({ path, onClick }: { path: string; onClick: (url: string) => void }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.storage
+      .from("feedback-images")
+      .createSignedUrl(path, 3600)
+      .then(({ data, error }) => {
+        if (!cancelled) {
+          if (error) console.error("Signed URL error:", error);
+          else if (data) setUrl(data.signedUrl);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [path]);
+
+  if (!url) return null;
+
+  return (
+    <button
+      onClick={() => onClick(url)}
+      className="relative mt-2 mb-1 group"
+      aria-label="View attached image"
+    >
+      <img
+        src={url}
+        alt="Feedback attachment"
+        className="h-16 w-auto rounded-md border border-border/60 object-cover transition-transform group-hover:scale-[1.02]"
+      />
+      <div className="absolute inset-0 rounded-md ring-1 ring-inset ring-black/5 group-hover:ring-primary/40 transition-colors" />
+    </button>
+  );
+}
   const { user } = useAuth();
   const navigate = useNavigate();
   const [rows, setRows] = useState<FeedbackRow[]>([]);
