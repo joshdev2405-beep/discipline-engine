@@ -66,7 +66,6 @@ function FeedbackThumbnail({ path, onClick }: { path: string; onClick: (url: str
     </button>
   );
 }
-}
 
 export default function FeedbackInbox() {
   const { user } = useAuth();
