@@ -14,6 +14,7 @@ type FeedbackRow = {
   category: string;
   message: string;
   app_version: string | null;
+  image_url: string | null;
   created_at: string;
 };
 
