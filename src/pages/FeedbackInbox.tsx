@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Inbox, ArrowLeft, Loader2, Bug, Sparkles, MessageCircle, ImageIcon } from "lucide-react";
+import { Inbox, ArrowLeft, Loader2, Bug, Sparkles, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { useIsAdmin } from "@/lib/operator-mode";
