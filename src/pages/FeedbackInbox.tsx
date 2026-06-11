@@ -201,6 +201,19 @@ export default function FeedbackInbox() {
           ))}
         </div>
       )}
+
+      <Dialog open={!!lightboxUrl} onOpenChange={(open) => !open && setLightboxUrl(null)}>
+        <DialogContent className="max-w-3xl p-2 bg-background/95 backdrop-blur-sm border-border/60">
+          <DialogTitle className="sr-only">Feedback attachment</DialogTitle>
+          {lightboxUrl && (
+            <img
+              src={lightboxUrl}
+              alt="Feedback attachment full view"
+              className="w-full h-auto rounded-md"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
