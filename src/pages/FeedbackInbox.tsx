@@ -183,6 +183,12 @@ export default function FeedbackInbox() {
               <p className="relative text-sm text-foreground whitespace-pre-wrap leading-relaxed mb-3">
                 {row.message}
               </p>
+              {row.image_url && (
+                <FeedbackThumbnail
+                  path={row.image_url}
+                  onClick={(url) => setLightboxUrl(url)}
+                />
+              )}
               <div className="relative flex items-center justify-between text-[10px] text-muted-foreground border-t border-border/40 pt-2">
                 <span className="font-mono truncate" title={row.user_id}>
                   user: {row.user_id}
