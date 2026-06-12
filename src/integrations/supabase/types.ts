@@ -38,6 +38,7 @@ export type Database = {
       feedback: {
         Row: {
           app_version: string | null
+          archived_at: string | null
           category: string
           created_at: string
           id: string
@@ -47,6 +48,7 @@ export type Database = {
         }
         Insert: {
           app_version?: string | null
+          archived_at?: string | null
           category: string
           created_at?: string
           id?: string
@@ -56,6 +58,7 @@ export type Database = {
         }
         Update: {
           app_version?: string | null
+          archived_at?: string | null
           category?: string
           created_at?: string
           id?: string

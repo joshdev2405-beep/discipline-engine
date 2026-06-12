@@ -1,11 +1,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Inbox, ArrowLeft, Loader2, Bug, Sparkles, MessageCircle } from "lucide-react";
+import { Inbox, ArrowLeft, Loader2, Bug, Sparkles, MessageCircle, Archive, ArchiveRestore, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { useIsAdmin } from "@/lib/operator-mode";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 
 type FeedbackRow = {
@@ -15,10 +17,11 @@ type FeedbackRow = {
   message: string;
   app_version: string | null;
   image_url: string | null;
+  archived_at: string | null;
   created_at: string;
 };
 
-const CATEGORIES = ["All", "Bug", "Feature Request", "General"] as const;
+const CATEGORIES = ["All", "Bug", "Feature Request", "General", "Archive"] as const;
 
 function CategoryIcon({ c }: { c: string }) {
   if (c === "Bug") return <Bug className="h-3 w-3" />;
@@ -34,9 +37,11 @@ function categoryClass(c: string) {
 
 function FeedbackThumbnail({ path, onClick }: { path: string; onClick: (url: string) => void }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     supabase.storage
       .from("feedback-images")
       .createSignedUrl(path, 3600)
@@ -44,26 +49,47 @@ function FeedbackThumbnail({ path, onClick }: { path: string; onClick: (url: str
         if (!cancelled) {
           if (error) console.error("Signed URL error:", error);
           else if (data) setUrl(data.signedUrl);
+          setLoading(false);
         }
       });
     return () => { cancelled = true; };
   }, [path]);
 
+  if (loading) {
+    return (
+      <div className="mt-2 mb-1 flex h-16 w-24 items-center justify-center rounded-md border border-border/60 bg-background/30">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (!url) return null;
 
   return (
-    <button
-      onClick={() => onClick(url)}
-      className="relative mt-2 mb-1 group"
-      aria-label="View attached image"
-    >
-      <img
-        src={url}
-        alt="Feedback attachment"
-        className="h-16 w-auto rounded-md border border-border/60 object-cover transition-transform group-hover:scale-[1.02]"
-      />
-      <div className="absolute inset-0 rounded-md ring-1 ring-inset ring-black/5 group-hover:ring-primary/40 transition-colors" />
-    </button>
+    <div className="mt-2 mb-1 flex items-start gap-2">
+      <button
+        onClick={() => onClick(url)}
+        className="group relative overflow-hidden rounded-md"
+        aria-label="View attached image"
+        type="button"
+      >
+        <img
+          src={url}
+          alt="Feedback attachment"
+          className="h-16 w-24 rounded-md border border-border/60 object-cover transition-transform group-hover:scale-[1.02]"
+        />
+        <div className="absolute inset-0 rounded-md ring-1 ring-inset ring-black/5 group-hover:ring-primary/40 transition-colors" />
+      </button>
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex h-8 items-center gap-1 rounded-md border border-border/60 bg-background/40 px-2 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ExternalLink className="h-3 w-3" />
+        Open
+      </a>
+    </div>
   );
 }
 
@@ -72,6 +98,7 @@ export default function FeedbackInbox() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<FeedbackRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<(typeof CATEGORIES)[number]>("All");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
@@ -96,9 +123,32 @@ export default function FeedbackInbox() {
   }, [user, allowed]);
 
   const filtered = useMemo(
-    () => (filter === "All" ? rows : rows.filter((r) => r.category === filter)),
+    () => rows.filter((r) => {
+      if (filter === "Archive") return !!r.archived_at;
+      if (filter === "All") return !r.archived_at;
+      return !r.archived_at && r.category === filter;
+    }),
     [rows, filter]
   );
+
+  const handleArchiveToggle = async (row: FeedbackRow) => {
+    setUpdatingId(row.id);
+    const nextArchivedAt = row.archived_at ? null : new Date().toISOString();
+    const { error } = await supabase
+      .from("feedback")
+      .update({ archived_at: nextArchivedAt })
+      .eq("id", row.id);
+
+    if (!error) {
+      setRows((current) =>
+        current.map((entry) =>
+          entry.id === row.id ? { ...entry, archived_at: nextArchivedAt } : entry
+        )
+      );
+    }
+
+    setUpdatingId(null);
+  };
 
   if (!allowed) {
     return (
@@ -189,13 +239,35 @@ export default function FeedbackInbox() {
                   onClick={(url) => setLightboxUrl(url)}
                 />
               )}
-              <div className="relative flex items-center justify-between text-[10px] text-muted-foreground border-t border-border/40 pt-2">
+              <div className="relative flex items-center justify-between gap-3 border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
                 <span className="font-mono truncate" title={row.user_id}>
                   user: {row.user_id}
                 </span>
-                {row.app_version && (
-                  <span className="uppercase tracking-widest">v{row.app_version}</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {row.app_version && (
+                    <span className="uppercase tracking-widest">v{row.app_version}</span>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={updatingId === row.id}
+                    onClick={() => handleArchiveToggle(row)}
+                    className={cn(
+                      "h-7 gap-1.5 px-2 text-[11px] text-muted-foreground hover:text-foreground",
+                      row.archived_at && "text-primary hover:text-primary"
+                    )}
+                  >
+                    {updatingId === row.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : row.archived_at ? (
+                      <ArchiveRestore className="h-3.5 w-3.5" />
+                    ) : (
+                      <Archive className="h-3.5 w-3.5" />
+                    )}
+                    {row.archived_at ? "Restore" : "Archive"}
+                  </Button>
+                </div>
               </div>
             </motion.div>
           ))}
