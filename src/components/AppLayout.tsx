@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, BookOpen, BarChart3, Settings, ImageIcon, Trophy, Zap, X, UserPlus, Ghost, Smartphone } from "lucide-react";
+import { LayoutDashboard, BookOpen, BarChart3, Settings, ImageIcon, Trophy, Zap, X, UserPlus, Ghost, Smartphone, Instagram } from "lucide-react";
 import logo from "@/assets/logo-new.jpeg";
 import { useProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/components/AuthProvider";
@@ -153,6 +153,19 @@ function AppSidebar() {
             <Smartphone className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Get the Mobile App</span>}
           </button>
+          <a
+            href="https://www.instagram.com/projecttradetracker/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-2.5 w-full rounded-lg transition-colors overflow-hidden whitespace-nowrap ${
+              collapsed
+                ? "justify-center py-2 text-sidebar-foreground hover:text-primary"
+                : "px-3 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+            }`}
+          >
+            <Instagram className="h-4 w-4 shrink-0" />
+            {!collapsed && <span>Follow on Instagram</span>}
+          </a>
         </div>
 
         <MobileAppModal open={mobileModalOpen} onClose={() => setMobileModalOpen(false)} />
