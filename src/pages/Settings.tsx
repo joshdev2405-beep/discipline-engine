@@ -420,3 +420,254 @@ function TradeRowEditor({ row, conditions, onUpdateDecay, onUpdateMetric, onAddM
     </div>
   );
 }
+
+// ============================================================================
+// Targets widget (with draft state + Save/Cancel + Supabase persistence)
+// ============================================================================
+
+type TargetsDraft = {
+  monthlyTradeTarget: number;
+  monthlyPhotoQuota: number;
+  monthlyPointTarget: number;
+  dailyPointAvg: number;
+  dailyCap: number;
+  excludeWeekends: boolean;
+};
+
+function targetsEqual(a: TargetsDraft, b: TargetsDraft) {
+  return (
+    a.monthlyTradeTarget === b.monthlyTradeTarget &&
+    a.monthlyPhotoQuota === b.monthlyPhotoQuota &&
+    a.monthlyPointTarget === b.monthlyPointTarget &&
+    a.dailyPointAvg === b.dailyPointAvg &&
+    a.dailyCap === b.dailyCap &&
+    a.excludeWeekends === b.excludeWeekends
+  );
+}
+
+function TargetsWidget({
+  savedTargets,
+  onSave,
+}: {
+  savedTargets: TargetsDraft;
+  onSave: (draft: TargetsDraft) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState<TargetsDraft>(savedTargets);
+  const [saving, setSaving] = useState(false);
+
+  // Re-sync draft whenever the saved baseline changes (load / realtime / after save).
+  useEffect(() => {
+    setDraft(savedTargets);
+  }, [savedTargets]);
+
+  const dirty = !targetsEqual(draft, savedTargets);
+  const tradingDays = getTradingDaysInMonth(draft.excludeWeekends);
+
+  const patch = (p: Partial<TargetsDraft>) => setDraft((d) => ({ ...d, ...p }));
+
+  const syncFromDaily = (daily: number) => {
+    const monthly = Math.round(daily * tradingDays * 10) / 10;
+    patch({ dailyPointAvg: daily, monthlyPointTarget: monthly });
+  };
+  const syncFromMonthly = (monthly: number) => {
+    const daily = Math.round((monthly / tradingDays) * 10) / 10;
+    patch({ monthlyPointTarget: monthly, dailyPointAvg: daily });
+  };
+  const handleWeekendToggle = (checked: boolean) => {
+    const newDays = getTradingDaysInMonth(checked);
+    patch({
+      excludeWeekends: checked,
+      dailyPointAvg: Math.round((draft.monthlyPointTarget / newDays) * 10) / 10,
+    });
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(draft);
+      toast.success("Targets saved");
+    } catch (e: any) {
+      toast.error("Failed to save targets", { description: e?.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="glass-card-elevated">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-accent" />
+          <span className="stat-label text-accent">Targets</span>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="h-3 w-3 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap">Excl. Weekends</span>
+            <Switch checked={draft.excludeWeekends} onCheckedChange={handleWeekendToggle} className="scale-75" />
+          </div>
+          <span className="text-[10px] text-muted-foreground/70 whitespace-nowrap">{tradingDays} trading days</span>
+        </div>
+      </div>
+
+      <div className="flex items-end gap-3 flex-wrap">
+        <InlineField label="Daily Avg Points" value={draft.dailyPointAvg} onChange={syncFromDaily} min={0.5} max={50} step={0.5} />
+        <InlineField label="Monthly Points Target" value={draft.monthlyPointTarget} onChange={syncFromMonthly} min={1} max={500} />
+        <InlineField label="Monthly Trade Target" value={draft.monthlyTradeTarget} onChange={(v) => patch({ monthlyTradeTarget: v })} min={1} max={200} />
+        <InlineField label="Photo Quota" value={draft.monthlyPhotoQuota} onChange={(v) => patch({ monthlyPhotoQuota: v })} min={0} max={100} />
+        <InlineField label="Daily Cap" value={draft.dailyCap} onChange={(v) => patch({ dailyCap: v })} min={1} max={10} />
+      </div>
+
+      <AnimatePresence>
+        {dirty && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            className="flex justify-end gap-2 mt-4 pt-3 border-t border-border/30"
+          >
+            <button
+              onClick={() => setDraft(savedTargets)}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground border border-border rounded-lg hover:bg-muted/30 transition-colors disabled:opacity-50"
+            >
+              <X className="h-3 w-3" /> Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+              Save
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ============================================================================
+// Point Allocation Grid widget (with draft state + Save/Cancel)
+// ============================================================================
+
+function PointAllocationGridWidget({
+  savedRows,
+  dailyCap,
+  conditions,
+  onSave,
+}: {
+  savedRows: TradeRowConfig[];
+  dailyCap: number;
+  conditions: Condition[];
+  onSave: (rows: TradeRowConfig[]) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState<TradeRowConfig[]>(savedRows);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(savedRows);
+  }, [savedRows]);
+
+  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(savedRows), [draft, savedRows]);
+
+  const updateRow = (tradeNumber: number, updates: Partial<TradeRowConfig>) => {
+    setDraft((rows) => rows.map((r) => (r.tradeNumber === tradeNumber ? { ...r, ...updates } : r)));
+  };
+  const updateRowMetric = (tradeNumber: number, metricId: string, updates: Partial<TradeRowMetric>) => {
+    setDraft((rows) =>
+      rows.map((r) =>
+        r.tradeNumber === tradeNumber
+          ? { ...r, metrics: r.metrics.map((m) => (m.id === metricId ? { ...m, ...updates } : m)) }
+          : r,
+      ),
+    );
+  };
+  const addRowMetric = (tradeNumber: number, metric: TradeRowMetric) => {
+    setDraft((rows) =>
+      rows.map((r) => (r.tradeNumber === tradeNumber ? { ...r, metrics: [...r.metrics, metric] } : r)),
+    );
+  };
+  const removeRowMetric = (tradeNumber: number, metricId: string) => {
+    setDraft((rows) =>
+      rows.map((r) =>
+        r.tradeNumber === tradeNumber ? { ...r, metrics: r.metrics.filter((m) => m.id !== metricId) } : r,
+      ),
+    );
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(draft);
+      toast.success("Point allocation saved");
+    } catch (e: any) {
+      toast.error("Failed to save", { description: e?.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card-elevated">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-primary" />
+          <span className="stat-label text-primary">Point Allocation Grid</span>
+          <div className="group relative">
+            <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help hover:text-primary transition-colors" />
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-3 rounded-lg bg-popover border border-border shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Each trade's points are multiplied by its decay factor before contributing to your daily discipline score. For example, Trade #2 with a 0.8× decay contributes only 80% of its raw points.
+              </p>
+              <div className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 bg-popover border-r border-b border-border rotate-45" />
+            </div>
+          </div>
+        </div>
+        <span className="text-[10px] text-muted-foreground">{dailyCap} trade rows</span>
+      </div>
+
+      <div className="space-y-4">
+        {draft.map((row) => (
+          <TradeRowEditor
+            key={row.tradeNumber}
+            row={row}
+            conditions={conditions}
+            onUpdateDecay={(d) => updateRow(row.tradeNumber, { decayMultiplier: d })}
+            onUpdateMetric={(metricId, updates) => updateRowMetric(row.tradeNumber, metricId, updates)}
+            onAddMetric={(m) => addRowMetric(row.tradeNumber, m)}
+            onRemoveMetric={(id) => removeRowMetric(row.tradeNumber, id)}
+          />
+        ))}
+      </div>
+
+      <AnimatePresence>
+        {dirty && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            className="flex justify-end gap-2 mt-4 pt-3 border-t border-border/30"
+          >
+            <button
+              onClick={() => setDraft(savedRows)}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground border border-border rounded-lg hover:bg-muted/30 transition-colors disabled:opacity-50"
+            >
+              <X className="h-3 w-3" /> Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+              Save
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
